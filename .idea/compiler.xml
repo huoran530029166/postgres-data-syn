@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="db-data-syn" />
+        <module name="lib-dataaccess" />
+        <module name="lib-datalogic" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="db-data-syn" target="1.8" />
+      <module name="db_data_syn" target="1.8" />
+      <module name="lib-dataaccess" target="1.8" />
+      <module name="lib-datalogic" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

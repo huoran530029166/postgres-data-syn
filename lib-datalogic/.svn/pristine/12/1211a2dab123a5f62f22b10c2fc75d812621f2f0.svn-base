@@ -1,0 +1,625 @@
+package com.goldwind.datalogic.business;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import com.goldwind.dataaccess.DataAsExpSet;
+import com.goldwind.dataaccess.database.DbAssistant;
+import com.goldwind.dataaccess.database.DbAssistant.DatabaseType;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.dataaccess.exception.DataAsException;
+import com.goldwind.datalogic.business.BusinessDef.PropType;
+import com.goldwind.datalogic.utils.NetCommDef.WfDeviceType;
+
+/**
+ * 创建视图工具类
+ * 
+ * @author 曹阳
+ *
+ */
+public class DbManage
+{
+    /**
+     * iec路径集合
+     */
+    private static ArrayList<String> IECPATHUNION = new ArrayList<String>();
+    /**
+     * 协议和iec路径集合
+     */
+    private static HashMap<String, HashMap<String, String>> IECPATHTABLE = new HashMap<String, HashMap<String, String>>();
+    /**
+     * 升压站协议集合
+     */
+    private static List<String> TSLIST = new ArrayList<>();
+    /**
+     * "daydata"常量
+     */
+    private static String DAYDATASTR = "daydata";
+
+    /**
+     * 创建视图
+     * 
+     * @param dbObj
+     *            数据库操作对象
+     * @param viewSql
+     *            查询系统视图SQL语句
+     * @param farmStorage
+     *            是否分电场存储
+     * @throws SQLException
+     *             数据库操作异常
+     * @throws DataAsException
+     *             自定义异常
+     */
+    public static void createView(DbOperBase dbObj, String viewSql, boolean farmStorage) throws SQLException, DataAsException
+    {
+        // 不处理 "daytotaldata"表
+        String[] tableNames = new String[] { "statisticdata", DAYDATASTR, "fivemindata", "fifteenmindata" };
+        String sql = "select distinct b.devicetype as devicetype, case when c.viewflag = 1 then b.protocolid else -1 end as protocolid "
+                + " from config.wtprotocolrec a, config.wttypeinfo b, config.devicetypeinfo c " + " where a.protocolid = b.protocolid and b.devicetype = c.id";
+        if (farmStorage)// 是否分电场保存
+        {
+            // 分电场存储暂不实现
+            // String getWfId = "select distinct wfid from config.wtinfo where public.check_wf_storage(wfid) = 1";
+        }
+        else
+        {
+            sql += " and public.check_wf_storage(a.wfid) = 1";
+            ResultSet rs = dbObj.getResultSet(DbAssistant.convertSqlByDb(sql, DatabaseType.Postgre), null);
+            while (rs.next())
+            {
+                String deviceType = rs.getString(1);
+                String protocolId = rs.getString(2);
+                IECPATHUNION.clear();
+                IECPATHTABLE.clear();
+                if (prepareCreateIecPath(dbObj, deviceType, protocolId, "", false) == 0)
+                {
+                    continue;
+                }
+                String[] sqls = new String[tableNames.length];
+                for (int j = 0; j < tableNames.length; j++) // 不处理daytotaldata
+                {
+                    String tableName = tableNames[j];
+                    String viewName = tableName + "_view_" + deviceType;
+                    if (!"-1".equals(protocolId))
+                    {
+                        viewName += "_" + protocolId;
+                    }
+                    sqls[j] = "create or replace view " + viewName + " as " + getIecPathViewSql(tableName, "", DatabaseType.Postgre, false) + ";";
+
+                }
+
+                dbObj.runBatchSql(sqls);
+            }
+        }
+
+        // 创建GIS视图
+        createViewForGIS(dbObj);
+        createEmsdOneDataView(dbObj);
+    }
+
+    /**
+     * 创建GIS视图
+     * 
+     * @param dbObj
+     *            数据库操作对象
+     * @throws SQLException
+     *             数据库操作异常
+     * @throws DataAsException
+     *             自定义异常
+     */
+    public static void createViewForGIS(DbOperBase dbObj) throws SQLException, DataAsException
+    {
+        // 创建视图SQL
+        String[] creatViewSqls = new String[2];
+
+        // 准备创建IEC路径视图（proptype 0：静态属性）
+        if (prepareIecPathForGIS(dbObj, PropType.STATIC) > 0)
+        {
+            creatViewSqls[0] = "create or replace view monitorcnf_view as " + getIecPathViewSql("monitorcnf", "", DatabaseType.Postgre, false) + ";";
+        }
+
+        // 准备创建IEC路径视图（proptype 1：动态属性）
+        if (prepareIecPathForGIS(dbObj, PropType.DYNAMIC) > 0)
+        {
+            creatViewSqls[1] = "create or replace view monitordata_view as " + getIecPathViewSql("monitordata", "", DatabaseType.Postgre, false) + ";";
+        }
+
+        // 批量创建视图
+        dbObj.runBatchSql(creatViewSqls);
+    }
+
+    /**
+     * 创建emsdonedata视图
+     * 
+     * @throws SQLException
+     *             sql异常
+     * @throws DataAsException
+     *             自定义异常
+     */
+    public static void createEmsdOneDataView(DbOperBase dbObj) throws SQLException, DataAsException
+    {
+        String tableName = "emsdonedata";
+        // 查询需要创建视图的协议
+        String sql = "select distinct b.devicetype as devicetype from config.wtinfo a, config.wttypeinfo b where a.protocolid = b.protocolid and b.devicetype=9;";
+
+        // 此处不需要重复打开连接
+        ResultSet rs = dbObj.getResultSet(DbAssistant.convertSqlByDb(sql, DatabaseType.Postgre), null);
+        while (rs.next())
+        {
+            IECPATHUNION.clear();
+            IECPATHTABLE.clear();
+            if (prepareCreateIecPath(dbObj, "9", "-1", "", true) != 0)
+            {
+                String[] sqls = new String[] { "create or replace view emsdonedata_view_9 as " + getIecPathViewSql(tableName, "", DatabaseType.Postgre, true) + ";" };
+                dbObj.runBatchSql(sqls);
+            }
+        }
+    }
+
+    /**
+     * 删除视图
+     * 
+     * @param dbObj
+     *            数据库连接
+     * @param viewSql
+     *            查询系统视图SQL语句
+     * @throws DataAsException
+     *             自定义异常
+     * @throws SQLException
+     *             sql异常
+     */
+    public static void dropView(DbOperBase dbObj, String viewSql) throws SQLException, DataAsException
+    {
+
+        String[] tableNames = new String[] { "statisticdata", DAYDATASTR, "fivemindata", "fifteenmindata", "monitorcnf", "monitordata", "emsdonedata" };
+        // 删除以上表的旧视图
+        for (String talName : tableNames)
+        {
+
+            String sviewSql = "";
+            if ("monitorcnf".equals(talName) || "monitordata".equals(talName) || "emsdonedata".equalsIgnoreCase(talName))
+            {
+                sviewSql = viewSql.replace("@dataType_view_", talName);
+            }
+            else
+            {
+                sviewSql = viewSql.replace("@dataType", talName);
+            }
+            ResultSet rs = dbObj.getResultSet(sviewSql, null);
+            while (rs.next())
+            {
+                String viewName = rs.getString(1);
+                String schema = rs.getString(2);
+                String killSql = "select pg_terminate_backend(pid) from pg_stat_activity where query like " + "'%view%' and pid<>pg_backend_pid();";
+                dbObj.getResultSet(killSql, null);
+                // 去掉删除视图语句
+                String sql = "drop view " + schema + "." + viewName;
+                dbObj.excute(sql, null);
+            }
+        }
+    }
+
+    /**
+     * 准备创建IEC路径视图
+     * 
+     * @param dbObj
+     *            数据库操作对象
+     * @param deviceType
+     *            设备类型
+     * @param protocolId
+     *            协议id
+     * @param wfId
+     *            风场id
+     * @param isEmsdOneData
+     *            是否为ems一分钟数据
+     * @return iec路径数量
+     * @throws DataAsException
+     *             自定义异常
+     */
+    private static int prepareCreateIecPath(DbOperBase dbObj, String deviceType, String protocolId, String wfId, boolean isEmsdOneData) throws DataAsException
+    {
+        int val = 0;
+        try
+        {
+            String sql = "";
+            if ("-1".equals(protocolId)) // 按设备类型
+            {
+                sql = "select protocolid from config.wttypeinfo where devicetype = " + deviceType
+                        + " and protocolid in (select distinct protocolid from config.wtprotocolrec @wfCondition) order by protocolid";
+                if (!wfId.isEmpty())
+                {
+                    sql = sql.replace("@wfCondition", " where wfid = " + wfId);
+                }
+                else
+                {
+                    sql = sql.replace("@wfCondition", " where public.check_wf_storage(wfid) = 1");
+                }
+            }
+            else
+            {
+                sql = "select protocolid from config.wttypeinfo where protocolid = " + protocolId;
+            }
+
+            ResultSet dtPro = dbObj.getResultSet(sql, null);
+            while (dtPro.next())
+            {
+                String protocolid = dtPro.getString(1);// 协议Id
+                int q = 0;
+                HashMap<String, String> temp = new HashMap<String, String>();
+                if (!isEmsdOneData)
+                {
+                    sql = "select iecpath from config.propaths where protocolid = " + dtPro.getString(1) + " and transtype = 2 order by offsets, iecpath";
+                }
+                else
+                {
+                    sql = "select iecpath from config.propaths where protocolid = " + dtPro.getString(1) + " and bsave > 0 and transtype = 1 order by offsets, iecpath";
+
+                }
+                ResultSet dtPath = dbObj.getResultSet(sql, null);
+                while (dtPath.next())
+                {
+                    if (IECPATHUNION.indexOf(dtPath.getString(1)) < 0)
+                    {
+                        IECPATHUNION.add(dtPath.getString(1));
+                        val++;
+                    }
+                    temp.put(dtPath.getString(1), "id" + q);
+                    q++;
+                }
+
+                // 创建风机/逆变器视图时，固定包含维护时间、故障时间、系统OK时间、外部OK时间等与时间可利用率计算相关的量(2019.03.13 fcy)
+                if (String.valueOf(WfDeviceType.WindTurbine.getResult()).equals(deviceType) || String.valueOf(WfDeviceType.Inverter.getResult()).equals(deviceType))
+                {
+                    // 添加：定期维护时间的初值和末值
+                    if (!IECPATHUNION.contains(IecPathDef.DEVMAINTAINBEGIN))
+                    {
+                        IECPATHUNION.add(IecPathDef.DEVMAINTAINBEGIN);
+                    }
+                    if (!IECPATHUNION.contains(IecPathDef.DEVMAINTAINEND))
+                    {
+                        IECPATHUNION.add(IecPathDef.DEVMAINTAINEND);
+                    }
+                    // 添加：故障时间的初值和末值
+                    if (!IECPATHUNION.contains(IecPathDef.DEVFAULTBEGIN))
+                    {
+                        IECPATHUNION.add(IecPathDef.DEVFAULTBEGIN);
+                    }
+                    if (!IECPATHUNION.contains(IecPathDef.DEVFAULTEND))
+                    {
+                        IECPATHUNION.add(IecPathDef.DEVFAULTEND);
+                    }
+                    // 添加：手动停机时间的初值和末值 说明：协议中没有的强制在视图中添加
+                    if (!IECPATHUNION.contains(IecPathDef.MANUALSTOPTIMEBEGIN))
+                    {
+                        IECPATHUNION.add(IecPathDef.MANUALSTOPTIMEBEGIN);
+                    }
+                    if (!IECPATHUNION.contains(IecPathDef.MANUALSTOPTIMEEND))
+                    {
+                        IECPATHUNION.add(IecPathDef.MANUALSTOPTIMEEND);
+                    }
+                    // 添加：外部故障时间的初值和末值 说明：协议中没有的强制在视图中添加
+                    if (!IECPATHUNION.contains(IecPathDef.ENVIRONMENTNOTOKBEGIN))
+                    {
+                        IECPATHUNION.add(IecPathDef.ENVIRONMENTNOTOKBEGIN);
+                    }
+                    if (!IECPATHUNION.contains(IecPathDef.ENVIRONMENTNOTOKEND))
+                    {
+                        IECPATHUNION.add(IecPathDef.ENVIRONMENTNOTOKEND);
+                    }
+                }
+
+                // 创建视图时，固定包含绝对条数、质量条数（多算）、质量条数（少算）等与质量位相关的量(2019.03.20 fcy)
+                // 添加：绝对条数
+                if (!IECPATHUNION.contains(CustomIecPathDef.ABSOLUTENUM))
+                {
+                    IECPATHUNION.add(CustomIecPathDef.ABSOLUTENUM);
+                    val++;
+                }
+                temp.put(CustomIecPathDef.ABSOLUTENUM, "\"" + CustomIecPathDef.ABSOLUTENUM + "\"");
+                // 添加：质量条数（多算）
+                if (!IECPATHUNION.contains(CustomIecPathDef.QUALITYMULTINUM))
+                {
+                    IECPATHUNION.add(CustomIecPathDef.QUALITYMULTINUM);
+                    val++;
+                }
+                temp.put(CustomIecPathDef.QUALITYMULTINUM, "\"" + CustomIecPathDef.QUALITYMULTINUM + "\"");
+                // 添加：质量条数（少算）
+                if (!IECPATHUNION.contains(CustomIecPathDef.QUALITYLESSNUM))
+                {
+                    IECPATHUNION.add(CustomIecPathDef.QUALITYLESSNUM);
+                    val++;
+                }
+                temp.put(CustomIecPathDef.QUALITYLESSNUM, "\"" + CustomIecPathDef.QUALITYLESSNUM + "\"");
+
+                IECPATHTABLE.put(protocolid, temp);
+            }
+
+            // 查询所有升压站协议
+            ResultSet tsRs = dbObj.getResultSet("select protocolid from config.wttypeinfo where devicetype=1", null);
+            while (tsRs.next())
+            {
+                TSLIST.add(tsRs.getString("protocolid"));
+            }
+
+        }
+        catch (Exception exp)
+        {
+            DataAsExpSet.throwExpByResCode("DbManage_prepareCreateIecPath_1", null, null, exp);
+        }
+        return val;
+    }
+
+    /**
+     * 准备创建IEC路径视图
+     * 
+     * @param dbObj
+     *            数据库操作对象
+     * @param proptype
+     *            属性类别，0：静态属性，1：动态属性
+     * @return iec路径数量
+     * @throws DataAsException
+     *             自定义异常
+     */
+    private static int prepareIecPathForGIS(DbOperBase dbObj, PropType proptype) throws DataAsException
+    {
+        int val = 0;
+        try
+        {
+            // 清除【iec路径集合】和【协议和iec路径集合】的内存
+            IECPATHUNION.clear();
+            IECPATHTABLE.clear();
+
+            // 按照属性类别分类，生成新的【iec路径集合】和【协议和iec路径集合】
+            String sql = "select distinct pactid from config.monitorpacttype order by pactid";
+            ResultSet dtPro = dbObj.getResultSet(sql, null);
+            while (dtPro.next())
+            {
+                String protocolid = dtPro.getString(1);// 协议Id
+                int q = 0;// 按照属性类别分类后的sort排序
+                HashMap<String, String> temp = new HashMap<String, String>();
+                sql = "select propertypath from config.monitorpactinfo where pactid = @pactid and proptype = @proptype order by sort, propertypath";
+                sql = sql.replace("@pactid", protocolid).replace("@proptype", String.valueOf(proptype.getResult()));
+                ResultSet dtPath = dbObj.getResultSet(sql, null);
+                while (dtPath.next())
+                {
+                    if (IECPATHUNION.indexOf(dtPath.getString(1)) < 0)
+                    {
+                        IECPATHUNION.add(dtPath.getString(1));
+                        val++;
+                    }
+                    temp.put(dtPath.getString(1), "id" + q);
+                    q++;
+                }
+                IECPATHTABLE.put(protocolid, temp);
+            }
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByResCode("DbManage_prepareIecPathForGIS_1", new String[] { "proptype" }, new Object[] { proptype }, e);
+        }
+        return val;
+    }
+
+    /**
+     * 根据表名称得到创建视图的sql语句
+     * 
+     * @param tableName
+     *            表名
+     * @param wfId
+     *            风场id
+     * @param dbType
+     *            数据库类型
+     * @param isEmsdOneData
+     *            是否为功率控制一分钟数据
+     * @return 创建视图的sql语句
+     * @throws DataAsException
+     *             自定义异常
+     */
+    private static String getIecPathViewSql(String tableName, String wfId, DatabaseType dbType, boolean isEmsdOneData) throws DataAsException
+    {
+        String sqlBegin;
+        if (dbType == DatabaseType.SqlServer)
+        {
+            sqlBegin = "select top (100) percent ";
+        }
+        else
+        {
+            sqlBegin = "select ";
+        }
+
+        // 创建GIS地图中【监控对象的配置信息表】的视图和【监控对象的结果数据表】的视图时需要特殊处理
+        if ("monitorcnf".equals(tableName))
+        {
+            sqlBegin += "b.objectid as objectid, b.objectname as objectname, b.othersysid as othersysid, b.pactid as pactid, b.isdel as isdel, b.groupid as groupid, b.pid as pid, ";
+        }
+        else if ("monitordata".equals(tableName))
+        {
+            sqlBegin += "b.wfid as wfid, b.objectid as objectid, b.rectime as rectime, ";
+        }
+        else
+        {
+            sqlBegin += "b.wfid as wfid, b.wtid as wtid, b.rectime as rectime, ";
+        }
+
+        if ("daytotaldata".equals(tableName))
+        {
+            sqlBegin += "dataflag as dataflag, ";
+        }
+        StringBuilder sql = new StringBuilder();
+        try
+        {
+            int count = 0;
+            for (String proId : IECPATHTABLE.keySet())
+            {
+                String tn = tableName;
+                if (TSLIST.contains(proId))
+                {
+                    tn = tableName + "_1";
+                }
+                sql.append(sqlBegin);
+                HashMap<String, String> temp = IECPATHTABLE.get(proId);
+                for (int i = 0; i < IECPATHUNION.size(); i++)
+                {
+                    if (!DAYDATASTR.equals(tableName) && (IECPATHUNION.get(i).equals(CustomIecPathDef.ABSOLUTENUM) || IECPATHUNION.get(i).equals(CustomIecPathDef.QUALITYMULTINUM)
+                            || IECPATHUNION.get(i).equals(CustomIecPathDef.QUALITYLESSNUM)))
+                    {
+                        continue;
+                    }
+
+                    if (temp.containsKey(IECPATHUNION.get(i)))
+                    {
+                        sql.append("b." + temp.get(IECPATHUNION.get(i)) + " as \"" + IECPATHUNION.get(i) + "\"");
+                    }
+                    else
+                    {
+                        // 创建GIS地图中【监控对象的配置信息表】的视图和【监控对象的结果数据表】的视图时需要特殊处理
+                        if ("monitorcnf".equals(tableName) || "monitordata".equals(tableName))
+                        {
+                            sql.append(" cast ( null as character) as \"" + IECPATHUNION.get(i) + "\"");
+                        }
+                        else if (isEmsdOneData)
+                        {
+                            sql.append(" cast ( null as varchar) as \"" + IECPATHUNION.get(i) + "\"");
+                        }
+                        else
+                        {
+                            sql.append(" cast ( null as numeric) as \"" + IECPATHUNION.get(i) + "\"");
+                        }
+                    }
+                    if (i < IECPATHUNION.size() - 1)
+                    {
+                        sql.append(", ");
+                    }
+                }
+
+                // 去除尾部可能存在的", "
+                if (sql.lastIndexOf(", ") == sql.length() - 2 && sql.length() > 2)
+                {
+                    sql = new StringBuilder(sql.substring(0, sql.lastIndexOf(", ")));
+                }
+
+                // 创建GIS地图中【监控对象的配置信息表】的视图和【监控对象的结果数据表】的视图时需要特殊处理
+                if ("monitorcnf".equals(tableName))
+                {
+                    sql.append(" from config." + tableName + " b where b.pactid = " + proId);
+                }
+                else if ("monitordata".equals(tableName))
+                {
+                    sql.append(" from " + tableName + " b,config.monitorcnf a where ");
+                    sql.append("a.objectid = b.objectid and a.pactid = " + proId);
+                }
+                else
+                {
+                    sql.append(" from " + tn + " b,config.wtinfo a where ");
+                    // 去除分布式处理
+                    // if (wfId.isEmpty())
+                    // {
+                    // sql.append(" public.check_wf_storage(a.wfid) = 1 and ");
+                    // }
+                    sql.append("a.wtid = b.wtid and a.protocolid = " + proId);
+                }
+
+                if (count++ < IECPATHTABLE.keySet().size() - 1)
+                {
+                    sql.append(" union all ");
+                }
+            }
+            // sql.append(" order by wtid, rectime");
+
+            if ("daytotaldata".equals(tableName))
+            {
+                sql.append(", dataflag");
+            }
+        }
+        catch (Exception exp)
+        {
+            DataAsExpSet.throwExpByResCode("DbManage_getIecPathViewSql_1", new String[] { "tableName" }, new Object[] { tableName }, exp);
+
+        }
+        return sql.toString();
+    }
+
+    /**
+     * 解析iec路径
+     * 
+     * @param iecPath
+     *            iec路径
+     * @return 解析结果
+     */
+    public static String getIecPathDataType(String iecPath)
+    {
+        String iecpath = "double";
+        String dataType = iecPath.split("\\.")[3].toLowerCase();
+
+        // 去除最大、最小、平均标志
+        int index = dataType.indexOf('[');
+        if (index >= 0)
+        {
+            dataType = dataType.substring(0, index);
+        }
+
+        switch (dataType) {
+            case "i8":
+                iecpath = "byte";
+                break;
+            case "f32":
+                iecpath = "real";
+                break;
+            case "d64":
+                iecpath = "double";
+                break;
+            case "i16":
+                iecpath = "int16";
+                break;
+            case "i32":
+                iecpath = "int32";
+                break;
+            case "u16":
+                iecpath = "uint16";
+                break;
+            case "u32":
+                iecpath = "uint32";
+                break;
+            case "dt":
+                iecpath = "datetime";
+                break;
+            case "s":
+                iecpath = "string";
+                break;
+            case "b0":
+            case "b1":
+            case "b2":
+                iecpath = "bool";
+                break;
+            default:
+                iecpath = dataType;
+                break;
+        }
+        return iecpath;
+    }
+
+    /**
+     * 创建分区表(list分区表、复合分区表)
+     * 
+     * @param tableName
+     *            主表名称
+     * @param wfid
+     *            风场ID
+     * @throws rectime
+     *             时间（格式：yyyy-MM DataAsDef.MOTHFORMATSTR）
+     * @param dbObj
+     *            数据库操作对象（调用者负责开、关）
+     * @throws DataAsException
+     *             自定义异常
+     */
+    public static boolean createSubTable(String tableName, String wfid, String rectime, DbOperBase dbObj) throws DataAsException
+    {
+        // 创建分区表成功标志
+        boolean flag = false;
+
+        return flag;
+    }
+}

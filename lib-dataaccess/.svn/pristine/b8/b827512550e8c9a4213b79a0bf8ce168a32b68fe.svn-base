@@ -1,0 +1,9 @@
+-0=1510084: N\u00e3o foi poss\u00edvel conectar ao banco de dados.
+22001=1510085: Os dados salvos excedem o comprimento especificado.
+22007=1510086: Os dados de data e hora salvos n\u00e3o est\u00e3o no formato de data e hora correto.
+22P02=1510087: Os dados num\u00e9ricos salvos n\u00e3o est\u00e3o no formato num\u00e9rico correto.
+23502=1510088: Os dados salvos devem estar n\u00e3o vazios.
+23503=1510089: Associa\u00e7\u00e3o de chave estrangeira violada durante a edi\u00e7\u00e3o de dados.
+23505=1510090: duplica\u00e7\u00e3o de dados causada ao salvar dados.
+42601=1510091: A instru\u00e7\u00e3o SQL do banco de dados \u00e9 inv\u00e1lida.
+42P07=1510092: O objeto de banco de dados foi criado.

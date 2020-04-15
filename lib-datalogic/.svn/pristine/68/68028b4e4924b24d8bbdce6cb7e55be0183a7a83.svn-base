@@ -1,0 +1,120 @@
+package com.goldwind.datalogic.businesslogic.model;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.goldwind.dataaccess.DateAsDef;
+import com.goldwind.dataaccess.DynamicRun;
+
+public class EnergyEfficiencyBean
+{
+    private int wfid;
+
+    private int wtid;
+
+    private String rectime;
+
+    private List<EnergyEfficiencyDetailBean> detailBeans = null;
+
+    public EnergyEfficiencyBean(int vWfid, int vWtid, String vRectime)
+    {
+        this.wfid = vWfid;
+        this.wtid = vWtid;
+        this.rectime = vRectime;
+        this.detailBeans = new ArrayList<>();
+    }
+
+    /**
+     * @return the wfid
+     */
+    public int getWfid()
+    {
+        return wfid;
+    }
+
+    /**
+     * @return the wtid
+     */
+    public int getWtid()
+    {
+        return wtid;
+    }
+
+    /**
+     * @return the rectime
+     */
+    public String getRectime()
+    {
+        return rectime;
+    }
+
+    /**
+     * 实际发电量
+     */
+    public double getRealelec()
+    {
+        return detailBeans.stream().filter(o->o.isValid()).mapToDouble(EnergyEfficiencyDetailBean::getThoryPowerElec).sum();
+    }
+
+    /**
+     * 担保发电量
+     */
+    public double getGurarantelec()
+    {
+        return detailBeans.stream().filter(o->o.isValid()).mapToDouble(EnergyEfficiencyDetailBean::getGuarpow).sum();
+    }
+
+    /**
+     * 综合能效
+     */
+    public double getEE()
+    {
+        double sumReal = getRealelec();
+        double sumGuarpow = getGurarantelec();
+        return sumGuarpow > 0 ? sumReal / sumGuarpow : 0D;
+    }
+    
+    /**
+     * 最低能效时间精确到分钟YYYY-MM-dd hh:mm
+     * @return
+     */
+    public String getMiniEfficTime() 
+    { 
+        double effic=getMiniEffic();
+        return detailBeans.stream().filter(o->DynamicRun.isDoubleEqual(effic,o.getEffic())).map(EnergyEfficiencyDetailBean::getRectime).sorted().findFirst().orElse("");
+    }
+    
+    /**
+     * 最低能效
+     * @return
+     */
+    public double getMiniEffic() 
+    {
+        return detailBeans.stream().filter(o->o.isValid()).mapToDouble(EnergyEfficiencyDetailBean::getEffic).min().orElse(0.0D);
+    }
+
+    public String getDeleteSql()
+    {
+        return "delete  from orders.efficmtstate where wtid=" + this.wtid + " and rectime ='" + this.rectime + "';";
+    }
+
+    public String getInsertSql()
+    {
+        return "INSERT INTO orders.efficmtstate (wfid, wtid, rectime, elec, gurarantelec, comeffic,minieffic,minieffictime, createtime)" 
+                + " VALUES(" + this.wfid + ", " + this.wtid + ", '" + this.rectime + "', " + this.getRealelec() + ", "
+                + this.getGurarantelec() + "," 
+                + this.getEE() + ","
+                + this.getMiniEffic()
+                +",'"+this.getMiniEfficTime()
+                +"','"+ DateAsDef.getNow() + "');";
+    }
+
+    /**
+     * @return the detailBeans
+     */
+    public List<EnergyEfficiencyDetailBean> getDetailBeans()
+    {
+        return detailBeans;
+    }
+
+}

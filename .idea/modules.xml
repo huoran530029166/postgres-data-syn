@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/db-data-syn/db-data-syn.iml" filepath="$PROJECT_DIR$/db-data-syn/db-data-syn.iml" />
+      <module fileurl="file://$PROJECT_DIR$/lib-dataaccess/lib-dataaccess.iml" filepath="$PROJECT_DIR$/lib-dataaccess/lib-dataaccess.iml" />
+      <module fileurl="file://$PROJECT_DIR$/lib-datalogic/lib-datalogic.iml" filepath="$PROJECT_DIR$/lib-datalogic/lib-datalogic.iml" />
+    </modules>
+  </component>
+</project>

@@ -1,0 +1,15 @@
+com.goldwind.dbdatasyn
+com.goldwind.dbdatasyn.db2sqlite.factory
+com.goldwind.dbdatasyn.db2sqlite.init
+com.goldwind.dbdatasyn.db2sqlite.pojo
+com.goldwind.dbdatasyn.db2sqlite.service
+com.goldwind.dbdatasyn.db2sqlite.service.serviceinterface
+com.goldwind.dbdatasyn.db2sqlite.utils
+com.goldwind.dbdatasyn.pojo
+com.goldwind.dbdatasyn.sqlite2db.factory
+com.goldwind.dbdatasyn.sqlite2db.init
+com.goldwind.dbdatasyn.sqlite2db.pojo
+com.goldwind.dbdatasyn.sqlite2db.service
+com.goldwind.dbdatasyn.sqlite2db.service.serviceinterface
+com.goldwind.dbdatasyn.sqlite2db.utils
+com.goldwind.dbdatasyn.utils

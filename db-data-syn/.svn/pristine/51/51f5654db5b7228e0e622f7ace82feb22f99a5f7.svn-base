@@ -1,0 +1,34 @@
+package com.goldwind.dbdatasyn.sqlite2db.pojo;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 表数据 类
+ *
+ * @author huoran
+ */
+public class TableData
+{
+    /**
+     * 数据集
+     * key:主键数据字符串 多主键之间使用@sep@分割 value:单行数据
+     * value key:列名 value value:该列的值
+     */
+    private Map<String, Map<String, String>> datas = new HashMap<>();
+
+    public Map<String, Map<String, String>> getDatas()
+    {
+        return datas;
+    }
+
+    public void setDatas(Map<String, Map<String, String>> datas)
+    {
+        this.datas = datas;
+    }
+
+    @Override public String toString()
+    {
+        return "TableData{" + "datas=" + datas + '}';
+    }
+}

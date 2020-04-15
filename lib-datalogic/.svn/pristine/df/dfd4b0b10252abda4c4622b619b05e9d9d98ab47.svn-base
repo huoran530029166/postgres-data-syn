@@ -1,0 +1,591 @@
+package com.goldwind.datalogic.businesslogic.util;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.goldwind.dataaccess.DynamicRun;
+import com.goldwind.dataaccess.Log;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.datalogic.business.model.ChangeDataBean;
+import com.goldwind.datalogic.businesslogic.model.ExpDataObject;
+import com.goldwind.datalogic.businesslogic.model.OneDataLossElec;
+
+/**
+ * 风机处理函数
+ * 
+ * @author 谭璟
+ *
+ */
+public class DeviceHandleFunction
+{
+    /**
+     * 输出日志
+     */
+    private static Log LOGGER = Log.getLog(DeviceHandleFunction.class);
+
+    /**
+     * 标杆机组 方法(废弃 2019.09.05 冯春源)
+     * 
+     * @param wfid
+     *            风场
+     * @param device
+     *            风机
+     * @param dbOper
+     *            数据操作对象
+     * @return 标杆机组ID
+     */
+    public static String getBmarkDeive(String wfid, String device, DbOperBase dbOper)
+    {
+        String bmarkdevice = null;
+        try
+        {
+            dbOper.openConn();
+            String sql = "select * from config.bmarkdevice where wfid = '" + wfid + "' and endtime is null";
+            ResultSet dt = dbOper.getResultSet(sql, null);
+            if (dt.next())
+            {
+                sql = "select wtid from config.bmarkdevice where wtid = '" + device + "' and wfid = '" + wfid + "' and bmid = 1 and endtime is null";
+                ResultSet dtmrk = dbOper.getResultSet(sql, null);
+                if (dtmrk.next())
+                {
+                    bmarkdevice = dtmrk.getString("wtid");
+                }
+                else
+                {
+                    // 首先去确定风场有没有设定标杆机组 如果设定标杆机组 用当wtid 去得到当前的关联的标杆机组编号 如果wtid没有关联到标杆 就直接返回null 如果当前风场没有设定标杆机组就直接返回1
+                    sql = "select bmarkwtid from config.normaldevice where rectime is not null and endtime is null and wfid ='" + wfid + "' and wtid ='" + device + "'";
+                    ResultSet dtm = dbOper.getResultSet(sql, null);
+                    if (dtm.next())
+                    {
+                        bmarkdevice = dtm.getString("bmarkwtid");
+                    }
+                }
+                return bmarkdevice;
+            }
+            else
+            {
+                bmarkdevice = "ok";
+            }
+        }
+        catch (Exception ex)
+        {
+            ex.getMessage();
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                LOGGER.error(e);
+            }
+        }
+        return bmarkdevice;
+    }
+
+    /**
+     * 标杆机组 方法(传入的数据库操作对象已连接 2019.09.05 冯春源)
+     * 
+     * @param wfid
+     *            风场
+     * @param device
+     *            风机
+     * @param dbOper
+     *            数据操作对象
+     * @return 标杆机组ID
+     */
+    public static String getBmarkDeiveConnect(String wfid, String device, DbOperBase dbOper)
+    {
+        String bmarkdevice = null;
+        try
+        {
+            String sql = "select * from config.bmarkdevice where wfid = '" + wfid + "' and endtime is null";
+            ResultSet dt = dbOper.getResultSet(sql, null);
+            if (dt.next())
+            {
+                sql = "select wtid from config.bmarkdevice where wtid = '" + device + "' and wfid = '" + wfid + "' and bmid = 1 and endtime is null";
+                ResultSet dtmrk = dbOper.getResultSet(sql, null);
+                if (dtmrk.next())
+                {
+                    bmarkdevice = dtmrk.getString("wtid");
+                }
+                else
+                {
+                    // 首先去确定风场有没有设定标杆机组 如果设定标杆机组 用当wtid 去得到当前的关联的标杆机组编号 如果wtid没有关联到标杆 就直接返回null 如果当前风场没有设定标杆机组就直接返回1
+                    sql = "select bmarkwtid from config.normaldevice where rectime is not null and endtime is null and wfid ='" + wfid + "' and wtid ='" + device + "'";
+                    ResultSet dtm = dbOper.getResultSet(sql, null);
+                    if (dtm.next())
+                    {
+                        bmarkdevice = dtm.getString("bmarkwtid");
+                    }
+                }
+                return bmarkdevice;
+            }
+            else
+            {
+                bmarkdevice = "ok";
+            }
+        }
+        catch (Exception ex)
+        {
+            ex.getMessage();
+        }
+        return bmarkdevice;
+    }
+
+    /**
+     * 全场是否 设定标杆机组 null 为没设定 不为null 就有设定
+     * 
+     * @param wfid
+     *            风场ID
+     * @param dbOper
+     *            数据操作对象
+     * @return 返回结果集
+     */
+    public static String getDeviceWfid(String wfid, DbOperBase dbOper)
+    {
+        String result = null;
+        try
+        {
+            dbOper.openConn();
+            String sql = "select * from config.bmarkdevice where wfid = '" + wfid + "' and endtime is null";
+            ResultSet dt = dbOper.getResultSet(sql, null);
+            if (dt.next())
+            {
+                result = "ok";
+            }
+        }
+        catch (Exception ex)
+        {
+            ex.getMessage();
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                LOGGER.error(e);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 公式结果处理
+     * 
+     * @param list
+     *            公式
+     * @param wtstatus
+     *            状态字
+     * @param limitstatus
+     *            限功率字
+     * @param faultcode
+     *            故障字
+     * @param stopcode
+     *            停机字
+     * @param limitcode
+     *            限功率模式字
+     * @return 标识
+     */
+    public static int getCodeRusult(List<ExpDataObject> list, OneDataLossElec oneDataBean)
+    {
+        // 判断公式集合中 没有公式 没有公式 统一 返回 -1
+        if (list.isEmpty())
+        { 
+            return -1;
+        }
+        for (ExpDataObject obj : list)
+        {
+            String resulttemp = getExpString(obj.getFormula(), oneDataBean); // 根据公式 看对象数据 是否 满足 公式 满足 返回 对应标示
+            if (resulttemp.indexOf("DeviceCommState") < 0 && resulttemp.indexOf("alam") < 0)
+            {
+                boolean bresult = DynamicRun.logicExpression(resulttemp);
+                if (bresult)
+                {
+                    return Integer.valueOf(obj.getSetid());
+                }
+            }
+        }       
+        return -1;
+    }
+       
+    /**
+     * 公式结果处理
+     * @param expList
+     * @param oneDataBean
+     * @param stopStatusType
+     * @return
+     */
+    public static int getCodeRusult(List<ExpDataObject> expList, OneDataLossElec oneDataBean,List<ChangeDataBean>changeDataBeans, int stopStatusType)
+    {
+        // 判断公式集合中 没有公式 没有公式 统一 返回 -1
+        if (null == expList || expList.isEmpty())
+        {
+            return -1;
+        }
+        for (ExpDataObject obj : expList)
+        {
+            String resulttemp = getExpString(obj.getFormula(),oneDataBean); // 根据公式 看对象数据 是否 满足 公式 满足 返回 对应标示
+            if (resulttemp.contains("@Program.StopStatusType"))
+            {
+                resulttemp = resulttemp.replace("@Program.StopStatusType", stopStatusType+"");    
+            }                                   
+            if (resulttemp.indexOf("DeviceCommState") < 0 && resulttemp.indexOf("alam") < 0)
+            {
+                List<String> iecPathList = DynamicRun.getAllExprIecpaths(resulttemp);
+                if (null != changeDataBeans && !changeDataBeans.isEmpty() && null!= iecPathList && !iecPathList.isEmpty() )
+                {
+                    for (String key : iecPathList)
+                    {
+                        ChangeDataBean bean=changeDataBeans.stream().filter(o->key.equals(o.getIecpath())&&o.getMineteList().contains(oneDataBean.getRectime())).findFirst().orElse(null);
+                        if (null!=bean)
+                        {
+                            resulttemp = resulttemp.replace("@"+bean.getIecpath(), bean.getChangedata());  
+                        }
+                    } 
+                }                            
+                if (resulttemp.contains("，"))
+                {
+                    resulttemp=resulttemp.replace("，", ",");
+                }
+                boolean bresult = DynamicRun.logicExpression(resulttemp);
+                if (bresult)
+                {
+                    return obj.getSetid();
+                }
+            }         
+        }
+        return -1;
+    }
+    
+    /**
+     * 公式结果处理
+     * @param temp
+     * @param oneDataBean
+     * @return
+     */
+    public static String getExpString(String temp, OneDataLossElec oneDataBean)
+    {
+        if (null==temp)
+        {
+            //空值不计算
+            return "1>2";
+        }
+
+        // 环境温度
+        if (temp.contains("@WTUR.Temp.Ra.F32"))
+        {
+            temp = temp.replace("@WTUR.Temp.Ra.F32", oneDataBean.getEnvitemp()+"");
+        }
+        if (temp.contains("WTUR.Temp.Ra.F32"))
+        {
+            temp = temp.replace("WTUR.Temp.Ra.F32", oneDataBean.getEnvitemp()+"");
+        }
+        
+        // 通讯状态
+        if (temp.contains("@Program.DeviceCommState.Rd.F32")) 
+        {
+            temp = temp.replace("@Program.DeviceCommState.Rd.F32", "DeviceCommState");
+        }
+        
+        // 故障
+        if (temp.contains("@WTUR.Flt.Rs.S")) 
+        {
+            if (oneDataBean.getFaultcode() == null || oneDataBean.getFaultcode().isEmpty() || "null".equalsIgnoreCase(oneDataBean.getFaultcode()) )
+            {
+                //无效faultcode不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("@WTUR.Flt.Rs.S", oneDataBean.getFaultcode());
+            }
+        }
+        //兼容不带@的WTUR.Flt.Rs.S
+        if (temp.contains("WTUR.Flt.Rs.S")) 
+        {
+            if (oneDataBean.getFaultcode() == null || oneDataBean.getFaultcode().isEmpty() || "null".equalsIgnoreCase(oneDataBean.getFaultcode()) )
+            {
+                //无效faultcode不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("WTUR.Flt.Rs.S", oneDataBean.getFaultcode());
+            }
+        }
+        
+        //停机模式字
+        if (temp.contains("@WTUR.Other.Wn.I16.StopModeWord")) 
+        {
+            if (oneDataBean.getStopcode() == null || oneDataBean.getStopcode().isEmpty())
+            {
+              //无效stopcode不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("@WTUR.Other.Wn.I16.StopModeWord", oneDataBean.getStopcode());
+            }
+        }
+        //兼容不带@的StopModeWord
+        if (temp.contains("WTUR.Other.Wn.I16.StopModeWord")) 
+        {
+            if (oneDataBean.getStopcode() == null || oneDataBean.getStopcode().isEmpty())
+            {
+              //无效stopcode不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("WTUR.Other.Wn.I16.StopModeWord", oneDataBean.getStopcode());
+            }
+        }
+        
+        //  警告模式字
+        if (temp.contains("@WTUR.Alam.Rs.S")) 
+        {
+            temp = temp.replace("@WTUR.Alam.Rs.S", "alam");
+        }
+        
+        //  限功率模式字
+        if (temp.contains("@WTUR.Other.Rs.S.LitPowByPLC")) 
+        {
+            if (oneDataBean.getLimitcode() == null || oneDataBean.getLimitcode().isEmpty())
+            {
+              //无效limitcode不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("@WTUR.Other.Rs.S.LitPowByPLC", oneDataBean.getLimitcode());
+            }
+        }
+        
+       // 状态字
+        if (temp.contains("@WTUR.TurSt.Rs.S")) 
+        {
+            if (oneDataBean.getWtstatus() == null || oneDataBean.getWtstatus().isEmpty()||"null".equalsIgnoreCase(oneDataBean.getWtstatus()))
+            {
+              //无效wtstatus不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("@WTUR.TurSt.Rs.S", oneDataBean.getWtstatus());
+            }
+        }
+        //兼容不带@的状态字
+        if (temp.contains("WTUR.TurSt.Rs.S")) 
+        {
+            if (oneDataBean.getWtstatus() == null || oneDataBean.getWtstatus().isEmpty()||"null".equalsIgnoreCase(oneDataBean.getWtstatus()))
+            {
+              //无效wtstatus不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("WTUR.TurSt.Rs.S", oneDataBean.getWtstatus());
+            }
+        }
+        
+        //状态字2
+        if (temp.contains("@WTUR.Other.Rs.S.LitPowByState"))
+        {
+            if (oneDataBean.getLimitstatus() == null || oneDataBean.getLimitstatus().isEmpty()||"null".equalsIgnoreCase(oneDataBean.getLimitstatus()))
+            {
+                //无效limitstatus不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("@WTUR.Other.Rs.S.LitPowByState", oneDataBean.getLimitstatus());
+            }
+        }
+        
+        // 限功率模式字
+        if (temp.contains("@WTUR.Bool.Rd.b1.LimPowStopState")) 
+        {
+            if (oneDataBean.getLimitstatus() == null || oneDataBean.getLimitstatus().isEmpty()||"null".equalsIgnoreCase(oneDataBean.getLimitstatus()))
+            {
+               //无效limitstatus不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("@WTUR.Bool.Rd.b1.LimPowStopState", oneDataBean.getLimitstatus());
+            }
+        }
+        if (temp.contains("WTUR.Bool.Rd.b1.LimPowStopState")) 
+        {
+            if (oneDataBean.getLimitstatus() == null || oneDataBean.getLimitstatus().isEmpty()||"null".equalsIgnoreCase(oneDataBean.getLimitstatus()))
+            {
+               //无效limitstatus不计算损失电量
+                temp = "1>2";
+                return temp;
+            }
+            else
+            {
+                temp = temp.replace("WTUR.Bool.Rd.b1.LimPowStopState", oneDataBean.getLimitstatus());
+            }
+        }
+        return temp;
+    }
+
+    
+    /**
+     * 得到公式
+     * 
+     * @param dbOper
+     *            数据库操作对象
+     * @return 返回 公式应该关系
+     */
+    public static Map<String, List<ExpDataObject>> getDeviceEnergy(DbOperBase dbOper)
+    {
+        Map<String, List<ExpDataObject>> hash = new HashMap<>();
+        try
+        {
+            dbOper.openConn();
+            // 读取完协议公式 读取默认公式 如果修改为 基于 运行状态字的公式 只能走总公式 不能走协议公式 如果是原来的公式 先协议 后走 总公式            
+            ResultSet ds = dbOper.getResultSet("select id,expdescr,sort,typeid from config.energyuse_config where  isenabled = 1 order by sort ", null);
+            while (ds.next())
+            {
+                String typeId=ds.getString("typeid");
+                ExpDataObject obj = new ExpDataObject(ds.getString("id"), ds.getString("expdescr"), ds.getString("sort"));
+                if (!hash.containsKey(typeId))
+                {
+                    List<ExpDataObject> list = new ArrayList<>();                    
+                    list.add(obj);
+                    hash.put(typeId, list);
+                }
+                else
+                {
+                    List<ExpDataObject> list = hash.get(typeId);                    
+                    list.add(obj);
+                }
+            }
+
+            // 判断当前公式 使用顺序 isenabled = 1 意思是是否开启 说明就是 使用这个公式 如果是走 运行状态字的 不需要走协议公式表的
+            // 如果 所有的公式 都是 isenabled = 1 说明当前都是开启的 当前公式都需要使用 这个时候 需要根据 当前的 typeid 来进行判断
+            // 如果是40 运行状态字 那么 不会考虑使用 基本损失电量算法 如果 既有20 40 那么都需要使用 20的要 先走协议 没有走总公式 40或者其他 直接走 总公式
+            ResultSet dt = dbOper.getResultSet("select id,wttype,expdescr,testsort from config.energyuse_exp order by testsort", null);
+            while (dt.next())
+            {
+                ExpDataObject obj = new ExpDataObject(dt.getString("id"), dt.getString("expdescr"), dt.getString("testsort"));
+                String wttype=dt.getString("wttype");
+                if (!hash.containsKey(wttype))
+                {
+                    List<ExpDataObject> list = new ArrayList<>();                    
+                    list.add(obj);
+                    hash.put(wttype, list);
+                }
+                else
+                {
+                    List<ExpDataObject> list = hash.get(wttype);                    
+                    list.add(obj);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ex.getMessage();
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                LOGGER.error(e);
+            }
+        }
+        return hash;
+    }
+
+    
+    /**
+     * 标杆机组 方法
+     * 
+     * @param device
+     *            风机
+     * @param dbOper
+     *            数据操作对象
+     * @return 标杆机组ID
+     */
+    public static String getBmarkDeiveInfo(String device, DbOperBase dbOper)
+    {
+        String bmarkdevice = null;
+        try
+        {
+            dbOper.openConn();
+            String sql = "select wtid from config.bmarkdevice where wtid = '" + device + "' and bmid = 1 and endtime is null";
+            ResultSet dtmrk = dbOper.getResultSet(sql, null);
+            if (dtmrk.next())
+            {
+                bmarkdevice = dtmrk.getString("wtid");
+            }
+            else
+            {
+                // 首先去确定风场有没有设定标杆机组 如果设定标杆机组 用当wtid 去得到当前的关联的标杆机组编号 如果wtid没有关联到标杆 就直接返回null 如果当前风场没有设定标杆机组就直接返回1
+                sql = "select bmarkwtid from config.normaldevice where rectime is not null and endtime is null and wtid ='" + device + "'";
+                ResultSet dtm = dbOper.getResultSet(sql, null);
+                if (dtm.next())
+                {
+                    bmarkdevice = dtm.getString("bmarkwtid");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ex.getMessage();
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                LOGGER.error(e);
+            }
+        }
+        return bmarkdevice;
+    }
+
+    /**
+     * 判断是否为金风机型风机 (默认认为以"GW"开头的机型为金风机型)
+     * 
+     * @param wttype
+     * @return
+     */
+    public static boolean isGWWindTurbine(String wttype)
+    {
+        boolean result = false;
+        if (wttype != null && !wttype.isEmpty())
+        {
+            result = wttype.trim().toUpperCase().startsWith("GW");
+        }
+        return result;
+    }
+}

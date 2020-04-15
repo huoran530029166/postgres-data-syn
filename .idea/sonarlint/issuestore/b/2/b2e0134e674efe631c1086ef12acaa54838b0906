@@ -1,0 +1,35 @@
+
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 61 to the 15 allowed.(¾çíüùÿÿÿÿ
+Ssquid:S2130">Use "Double.parseDouble" for this string-to-double conversion.(ŞóË
+`squid:S1192"FDefine a constant instead of duplicating this literal "@sep@" 5 times.(ç¼€–øÿÿÿÿ
+Dsquid:S00108")Either remove or fill this block of code.(ÒÌâ–øÿÿÿÿ
+^squid:S3358"DExtract this nested ternary operation into an independent statement.(Îš¬Íÿÿÿÿÿ
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 26 to the 15 allowed.(·Œ¥”ÿÿÿÿÿ
+csquid:S1192"IDefine a constant instead of duplicating this literal "@oidsep@" 3 times.(Îš¬Íÿÿÿÿÿ
+Ssquid:S2130">Use "Double.parseDouble" for this string-to-double conversion.(ŞóË
+Dsquid:S00108")Either remove or fill this block of code.(ÒÌâ–øÿÿÿÿ
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(¶ÿÑğùÿÿÿÿ
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(ñşÄùÿÿÿÿ
+Dsquid:S00108")Either remove or fill this block of code.(ÒÌâ–øÿÿÿÿ
+Zsquid:S1192"FDefine a constant instead of duplicating this literal "\".\"" 3 times.(ËòÇ3
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(ğ™³ øÿÿÿÿ
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 26 to the 15 allowed.(åãşÆûÿÿÿÿ
+Dsquid:S2093"*Change this "try" to a try-with-resources.(ç£êúÿÿÿÿ
+Dsquid:S00108")Either remove or fill this block of code.(ÒÌâ–øÿÿÿÿ
+Ysquid:S3358"DExtract this nested ternary operation into an independent statement.(æÜï«
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(ÅÔùèûÿÿÿÿ
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(ëÜ’Øûÿÿÿÿ
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(È­‹—ùÿÿÿÿ
+Dsquid:S00108")Either remove or fill this block of code.(ÒÌâ–øÿÿÿÿ
+M
+squid:S106"9Replace this use of System.out or System.err by a logger.(×şÕ
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(ƒ¾ñøÿÿÿÿ
+R
+squid:S106"9Replace this use of System.out or System.err by a logger.(‹§ÙÆøÿÿÿÿ

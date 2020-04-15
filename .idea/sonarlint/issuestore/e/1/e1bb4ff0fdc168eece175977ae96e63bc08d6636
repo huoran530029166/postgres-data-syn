@@ -1,0 +1,43 @@
+
+r
+squid:S135"YReduce the total number of break and continue statements in this loop to use at most one.(Ëã¶şıÿÿÿÿ
+lsquid:S00117"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(öÄ¡µùÿÿÿÿ
+Isquid:S1066"/Merge this if statement with the enclosing one.(ªÏßÿÿÿÿÿ
+Wsquid:S00107"<Method has 9 parameters, which is greater than 7 authorized.(ş±‰ùùÿÿÿÿ
+Xsquid:S2130">Use "Double.parseDouble" for this string-to-double conversion.(œÄÃÈüÿÿÿÿ
+ssquid:S2293"YReplace the type specification in this constructor call with the diamond operator ("<>").(¤İùŒüÿÿÿÿ
+Isquid:S1066"/Merge this if statement with the enclosing one.(ªÏßÿÿÿÿÿ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(õª¸¶ûÿÿÿÿ
+Usquid:UnusedPrivateMethod"2Remove this unused private "isConformInfo" method.(‚Âäß
+‚squid:S1319"mThe return type of this method should be an interface such as "Map" rather than the implementation "HashMap".(¦”„¼
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 17 to the 15 allowed.(…û­¹øÿÿÿÿ
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 40 to the 15 allowed.(ş±‰ùùÿÿÿÿ
+gsquid:S1192"FDefine a constant instead of duplicating this literal "dbUrl" 6 times.(ö÷ÑÄúÿÿÿÿ8¡Íºå•.
+vsquid:S4165"aRemove this useless assignment; "flg" already holds the assigned value along all execution paths.(«¥àñ
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 17 to the 15 allowed.(¬—µûÿÿÿÿÿ
+bsquid:S1192"FDefine a constant instead of duplicating this literal "UTF-8" 5 times.(°Äˆ8¡Íºå•.
+lsquid:S1192"KDefine a constant instead of duplicating this literal "dbPassWord" 6 times.(ö÷ÑÄúÿÿÿÿ8¡Íºå•.
+gsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed.(‚Âäß
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 48 to the 15 allowed.(Ïç¶àıÿÿÿÿ
+Nsquid:S1118":Add a private constructor to hide the implicit public one.(²¼”F
+Isquid:S1066"/Merge this if statement with the enclosing one.(´€Â‡øÿÿÿÿ
+nsquid:S00117"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(‹šÙï8óÑšå•.
+~squid:S1192"bDefine a constant instead of duplicating this literal "BusinessFunc_getPowCurveSegment_1" 3 times.(é¹²ï8¡Íºå•.
+^squid:S2259"DA "NullPointerException" could be thrown; "result" is nullable here.(õª¸¶ûÿÿÿÿ
+j squid:LabelsShouldNotBeUsedCheck";Refactor the code to remove this label and the need for it.(ÂÖßûÿÿÿÿÿ
+msquid:S2293"YReplace the type specification in this constructor call with the diamond operator ("<>").(€Îçq
+Lsquid:S2589"7Remove this expression which always evaluates to "true"(Ôê‰â
+gsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 22 to the 15 allowed.(¦”„¼
+Wsquid:S00107"<Method has 9 parameters, which is greater than 7 authorized.(¼‡ŞÁÿÿÿÿÿ
+lsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 17 to the 15 allowed.(ÔÄÒøÿÿÿÿ
+Dsquid:S2093"*Change this "try" to a try-with-resources.(ç£êúÿÿÿÿ
+Xsquid:S00107"=Method has 10 parameters, which is greater than 7 authorized.(¬—µûÿÿÿÿÿ
+lsquid:S1192"KDefine a constant instead of duplicating this literal "dbUserName" 6 times.(ö÷ÑÄúÿÿÿÿ8¡Íºå•.
+Ssquid:S2130">Use "Double.parseDouble" for this string-to-double conversion.(óÄŸó
+Dsquid:S2093"*Change this "try" to a try-with-resources.(ç£êúÿÿÿÿ
+gsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(Í±ª¢
+j squid:LabelsShouldNotBeUsedCheck";Refactor the code to remove this label and the need for it.(ÂÖßûÿÿÿÿÿ
+Rsquid:S00107"<Method has 9 parameters, which is greater than 7 authorized.(¦”„¼
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Àº¥úÿÿÿÿ
+gsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 41 to the 15 allowed.(´“Â
+j squid:LabelsShouldNotBeUsedCheck";Refactor the code to remove this label and the need for it.(ÂÖßûÿÿÿÿÿ

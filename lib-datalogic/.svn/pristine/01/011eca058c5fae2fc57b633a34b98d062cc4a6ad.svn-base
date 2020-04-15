@@ -1,0 +1,542 @@
+package com.goldwind.datalogic.socket;
+
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
+import java.util.Arrays;
+
+import com.goldwind.dataaccess.Log;
+import com.goldwind.datalogic.utils.DataParse;
+import com.goldwind.datalogic.utils.NetCommDef;
+
+import io.netty.channel.ChannelHandlerContext;
+
+/**
+ * socket连接处理类
+ *
+ * @author 张超
+ */
+public class SocketComm
+{
+    /**
+     * 输出日志
+     */
+    private static Log LOGGER = Log.getLog(SocketComm.class);
+
+    /**
+     * 建立socket连接
+     *
+     * @param sendIp
+     *            服务器ip
+     * @param sendPort
+     *            服务器port
+     * @return socket连接
+     * @throws IOException
+     *             超时异常
+     */
+    @SuppressWarnings("squid:S2095")
+    public static Socket createSocketConn(String sendIp, int sendPort) throws IOException
+    {
+
+        Socket s = new Socket();
+        SocketAddress socketAddress = new InetSocketAddress(sendIp, sendPort);
+        // 设置连接超时时长为10s(20171023与三版保持一致).--wrb
+        s.connect(socketAddress, 5000);
+        s.setSoTimeout(90000);
+        return s;
+    }
+
+    /**
+     * 建立socket连接
+     *
+     * @param sendIp
+     *            服务器ip
+     * @param sendPort
+     *            服务器port
+     * @param timeout
+     *            超时时长
+     * @return socket连接
+     * @throws IOException
+     *             超时异常
+     */
+    @SuppressWarnings("squid:S2095")
+    public static Socket createSocketConn(String sendIp, int sendPort, int timeout) throws IOException
+    {
+
+        Socket s = new Socket();
+        SocketAddress socketAddress = new InetSocketAddress(sendIp, sendPort);
+        // 设置连接超时时长为10s(20171023与三版保持一致).--wrb
+        s.connect(socketAddress, 5000);
+        s.setSoTimeout(timeout);
+        return s;
+    }
+
+    /**
+     * 发送数据
+     *
+     * @param tcpClient
+     *            socket连接
+     * @param data
+     *            数据
+     * @return 返回结果
+     * @throws IOException
+     *             IO异常
+     */
+    public static byte[] sendData(Socket tcpClient, byte[] data) throws IOException
+    {
+        OutputStream out = tcpClient.getOutputStream();
+        out.write(data);
+        out.flush();
+        InputStream in = tcpClient.getInputStream();
+        ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
+        byte[] result = new byte[8192];
+        int num = 0;
+        if ((num = in.read(result)) != -1)
+        {
+            swapStream.write(result, 0, num);
+            return swapStream.toByteArray();
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    /**
+     * 发送数据
+     *
+     * @param tcpClient
+     *            socket连接
+     * @param data
+     *            数据
+     * @param isStream
+     *            是否发送的流数据(主要是为了 软适配接到前置返回的wait后回复ok使用)
+     * @throws IOException
+     *             IO异常
+     */
+    public static byte[] sendOrderData(Socket tcpClient, byte[] data, boolean isStream) throws IOException
+    {
+        OutputStream out = tcpClient.getOutputStream();
+        out.write(data);
+        out.flush();
+        InputStream in = tcpClient.getInputStream();
+        ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
+        byte[] result = new byte[8192];
+        int num = 0;
+
+        while ((num = in.read(result)) != -1)
+        {
+            // // 将数据直接返回给上层
+            byte[] sys = new byte[num];
+
+            // 写入swap
+            swapStream.write(result, 0, num);
+            // 判断结束符是不是“)”
+            // 判断字符串结尾
+            System.arraycopy(result, 0, sys, 0, num);
+            if (!isStream && sys[num - 1] == 41)
+            {
+                break;
+            }
+            if (Arrays.equals(result, NetCommDef.NETFINISHBUFFER))
+            {
+                break;
+            }
+        }
+
+        return swapStream.toByteArray();
+    }
+
+    /**
+     * 发送数据(不接收返回结果)
+     *
+     * @param tcpClient
+     *            socket连接
+     * @param data
+     *            数据
+     * @return 返回结果
+     * @throws IOException
+     *             IO异常
+     * @throws InterruptedException
+     *             休眠异常
+     */
+    public static boolean sendDataAsyn(Socket tcpClient, byte[] data) throws IOException, InterruptedException
+    {
+        OutputStream out = tcpClient.getOutputStream();
+        out.write(data);
+        out.flush();
+        // 防止发送过快导致数据未发送连接却被关闭情况
+        Thread.sleep(1000);
+        return true;
+    }
+
+    /**
+     * 发送数据(不接收返回结果)
+     *
+     * @param tcpClient
+     *            socket连接
+     * @param data
+     *            数据
+     * @param timeout
+     *            休眠时间
+     * @return 返回结果
+     * @throws IOException
+     *             IO异常
+     * @throws InterruptedException
+     *             休眠异常
+     */
+    public static boolean sendDataAsyn(Socket tcpClient, byte[] data, int timeout) throws IOException, InterruptedException
+    {
+        OutputStream out = tcpClient.getOutputStream();
+        out.write(data);
+        out.flush();
+        // 防止发送过快导致数据未发送连接却被关闭情况
+        Thread.sleep(timeout);
+        return true;
+    }
+
+    /**
+     * 发送数据
+     *
+     * @param tcpClient
+     *            socket连接
+     * @param data
+     *            数据
+     * @param wait
+     *            是否流数据包
+     * @return 返回结果
+     * @throws IOException
+     *             IO异常
+     */
+    public static byte[] sendData(Socket tcpClient, byte[] data, boolean wait) throws IOException
+    {
+        OutputStream out = tcpClient.getOutputStream();
+        out.write(data);
+        out.flush();
+        InputStream in = tcpClient.getInputStream();
+        ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
+        byte[] result = new byte[8192];
+        int num = 0;
+        int length = 0;
+        if ((num = in.read(result)) != -1)
+        {
+            swapStream.write(result, length, num);
+            length += num;
+
+            if (wait)
+            {
+                // 得到数据长度
+                byte[] len = new byte[4];
+                System.arraycopy(result, 4, len, 0, 4);
+                int packLen = DataParse.byteArrayToInt(len);
+                while (length < packLen + 8)
+                {
+                    if ((num = in.read(result)) != -1)
+                    {
+                        swapStream.write(result, 0, num);
+                        length += num;
+                    }
+                }
+            }
+        }
+
+        return swapStream.toByteArray();
+    }
+
+    /**
+     * 发送数据
+     *
+     * @param tcpClient
+     *            socket连接
+     * @param data
+     *            数据
+     * @param ctx
+     *            通道
+     * @param isReply
+     *            是否需要返回(主要是为了 软适配接到前置返回的wait后回复ok使用)
+     * @throws IOException
+     *             IO异常
+     */
+    public void sendData(Socket tcpClient, byte[] data, ChannelHandlerContext ctx, boolean isReply) throws IOException
+    {
+        OutputStream out = tcpClient.getOutputStream();
+        out.write(data);
+        out.flush();
+        if (isReply)
+        {
+            InputStream in = tcpClient.getInputStream();
+            // ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
+            byte[] result = new byte[8192];
+            int num = 0;
+
+            while ((num = in.read(result)) != -1)
+            {
+                // // 将数据直接返回给上层
+                byte[] sys = new byte[num];
+                System.arraycopy(result, 0, sys, 0, num);
+                if (ctx != null)
+                {
+                    ctx.writeAndFlush(sys);
+                }
+                if (Arrays.equals(result, NetCommDef.NETFINISHBUFFER))
+                {
+                    if (ctx != null)
+                    {
+                        ctx.close();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * 发送数据
+     *
+     * @param tcpClient
+     *            socket连接
+     * @param data
+     *            数据
+     * @param ctx
+     *            通道
+     * @param isReply
+     *            是否需要返回(主要是为了 软适配接到前置返回的wait后回复ok使用)
+     * @throws IOException
+     *             IO异常
+     */
+    public void sendData(Socket tcpClient, byte[] data, ChannelHandlerContext ctx, boolean isReply, boolean isStream) throws IOException
+    {
+        // Long starttime = System.currentTimeMillis();
+        // System.out.println("+++++++++++++++开始时间：" + starttime);
+        OutputStream out = tcpClient.getOutputStream();
+        out.write(data);
+        out.flush();
+        if (isReply)
+        {
+            InputStream in = tcpClient.getInputStream();
+            // ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
+            byte[] result = new byte[8192];
+            int num = 0;
+
+            while ((num = in.read(result)) != -1)
+            {
+                // // 将数据直接返回给上层
+                byte[] sys = new byte[num];
+                System.arraycopy(result, 0, sys, 0, num);
+                if (ctx != null)
+                {
+                    ctx.writeAndFlush(sys);
+                }
+
+                // 判断结束符是不是“)”
+                if (!isStream && sys[num - 1] == 41)
+                {
+                    if (ctx != null)
+                    {
+                        ctx.close();
+                    }
+                    break;
+                }
+                if (Arrays.equals(result, NetCommDef.NETFINISHBUFFER))
+                {
+                    if (ctx != null)
+                    {
+                        ctx.close();
+                    }
+                    break;
+                }
+
+            }
+        }
+    }
+
+    /**
+     * 发送数据
+     *
+     * @param sendIp
+     *            服务器ip
+     * @param sendPort
+     *            服务器port
+     * @param data
+     *            数据
+     * @return 返回结果
+     * @throws IOException
+     *             io异常
+     */
+    public static byte[] sendData(String sendIp, int sendPort, byte[] data) throws IOException
+    {
+        Socket tcpClient = createSocketConn(sendIp, sendPort);
+        try
+        {
+            return sendData(tcpClient, data);
+        }
+        finally
+        {
+            closeTcpClient(tcpClient);
+        }
+    }
+
+    /**
+     * 向服务端发送一条需要响应的消息(短趋势查询瞬态数据用,接收文件流)
+     * 
+     * @param message
+     *            消息
+     * @param ip
+     *            服务器IP地址
+     * @param port
+     *            服务器端口号
+     * @param delimiter
+     *            分割符
+     * @param stripDelimiter
+     *            是否去除分割符
+     * @param timeout
+     *            超时时间
+     * @return 响应消息
+     * @throws IOException
+     *             异常
+     */
+    public static byte[] sendMessage(byte[] message, String ip, int port, String delimiter, boolean stripDelimiter, int timeout) throws IOException
+    {
+        Socket clientSocket = null;
+        byte[] result = "".getBytes();
+        try
+        {
+            try
+            {
+                clientSocket = createSocketConn(ip, port, timeout);
+            }
+            catch (Exception e)
+            {
+                return "unconnected".getBytes();
+            }
+
+            // 向服务端发送一条需要响应的消息(短趋势查询瞬态数据用,接收文件流;Socket由外部传入)
+            result = sendMessage(message, clientSocket, delimiter, stripDelimiter);
+        }
+        finally
+        {
+            if (null != clientSocket)
+            {
+                clientSocket.close();
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 向服务端发送一条需要响应的消息(短趋势查询瞬态数据用,接收文件流;Socket由外部传入)
+     * 
+     * @param message
+     *            消息
+     * @param clientSocket
+     *            Socket连接对象
+     * @param delimiter
+     *            分割符
+     * @param stripDelimiter
+     *            是否去除分割符
+     * @return 响应消息
+     * @throws IOException
+     *             异常
+     */
+    public static byte[] sendMessage(byte[] message, Socket clientSocket, String delimiter, boolean stripDelimiter) throws IOException
+    {
+        byte[] result = "".getBytes();
+        try
+        {
+            ByteArrayOutputStream swapStream = new ByteArrayOutputStream();
+            OutputStream out = clientSocket.getOutputStream();
+            out.write(message);
+            out.flush();
+
+            DataInputStream input = new DataInputStream(clientSocket.getInputStream());
+            byte[] buff = new byte[8192]; // buff用于存放循环读取的临时数据
+            int rc = 0;
+            int delimiterlen = delimiter.getBytes().length;
+            while ((rc = input.read(buff, 0, 8192)) > 0)
+            {
+                byte[] finishbuffer = new byte[4];
+
+                // 判断本次读取到的字节长度大于等于4,再去判断末尾4位是否是结束标志
+                if (rc >= 4)
+                {
+                    System.arraycopy(buff, rc - delimiterlen, finishbuffer, 0, delimiterlen);
+                }
+
+                // 这段数据最后是否有分隔符
+                if (delimiter.equals(new String(finishbuffer, "UTF-8")))
+                {
+                    // 是否需要分隔符
+                    if (stripDelimiter && rc >= 4)
+                    {
+                        swapStream.write(buff, 0, rc - delimiterlen);
+                    }
+                    else
+                    {
+                        swapStream.write(buff, 0, rc);
+                    }
+                    break;
+                }
+                else
+                {
+                    swapStream.write(buff, 0, rc);
+                }
+                buff = new byte[8192];
+            }
+            result = swapStream.toByteArray(); // in_b为转换之后的结果
+
+        }
+        catch (SocketTimeoutException e)
+        {
+            // 返回null给软适配，软适配会认为连接超时
+            result = null;
+        }
+
+        return result;
+    }
+
+    /**
+     * 关闭socket连接
+     *
+     * @param tcpClient
+     *            socket连接
+     */
+    public static void closeTcpClient(Socket tcpClient)
+    {
+        if (tcpClient != null)
+        {
+            try
+            {
+                tcpClient.close();
+            }
+            catch (IOException e)
+            {
+                LOGGER.error(e);
+            }
+        }
+    }
+
+    // @Test
+    // public void sendDataAsynTest() throws Exception
+    // {
+    // Socket s = SocketComm.createSocketConn("127.0.0.1", 8807);
+    // byte[] data = "test".getBytes();
+    // Assert.assertTrue(sendDataAsyn(s, data));
+    // }
+    //
+    // @Test
+    // public void sendDataTest() throws UnknownHostException, IOException
+    // {
+    // Socket s = SocketComm.createSocketConn("127.0.0.1", 8807);
+    // byte[] data = "test".getBytes();
+    // byte[] returnData = sendData(s, data, false);
+    // System.out.println(new String(returnData));
+    // // TODO 文件单元测试
+    //
+    // }
+}

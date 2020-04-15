@@ -1,0 +1,301 @@
+package com.goldwind.datalogic.businesslogic.electricityloss;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.goldwind.dataaccess.ArrayOper;
+import com.goldwind.dataaccess.DataAsDef;
+import com.goldwind.dataaccess.DateAsDef;
+import com.goldwind.dataaccess.DynamicRun;
+import com.goldwind.dataaccess.Log;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.datalogic.business.model.ChangeDataBean;
+import com.goldwind.datalogic.business.model.DeviceInfo;
+import com.goldwind.datalogic.business.model.ProtocolRuleBean;
+import com.goldwind.datalogic.businesslogic.model.EnergyEfficiencyBean;
+import com.goldwind.datalogic.businesslogic.model.EnergyEfficiencyDetailBean;
+import com.goldwind.datalogic.businesslogic.model.ExpDataObject;
+import com.goldwind.datalogic.businesslogic.model.GuarPowBean;
+import com.goldwind.datalogic.businesslogic.model.GuarPowDetailBean;
+import com.goldwind.datalogic.businesslogic.model.OneDataLossElec;
+import com.goldwind.datalogic.businesslogic.util.DeviceHandleFunction;
+import com.goldwind.datalogic.dsp.BaseConfig;
+import com.goldwind.datalogic.utils.ControlProcessDef.LossType;
+import com.goldwind.datalogic.utils.MemoryData;
+
+public class EnergyEfficiencyUtil extends ElectricityLoss
+{
+
+    /**
+     * 所有协议叶片结冰损失电量类型
+     */
+    private HashMap<String, ProtocolRuleBean> protocolRuleHash;
+
+    protected Log logger = Log.getLog(this.getClass());
+
+    public EnergyEfficiencyUtil(DbOperBase dbOper, Map<String, List<ExpDataObject>> map)
+    {
+        super(dbOper, map);
+        protocolRuleHash = getProtocolRuleHash();
+    }
+
+    public List<OneDataLossElec> getOneDataLossElecListMap(DbOperBase dbOper, int vWtid, Date vStart, Date vEnd)
+    {
+        List<OneDataLossElec> list = new ArrayList<>();
+        StringBuilder sqlBuilder = new StringBuilder();
+        sqlBuilder.append("select wtid,rectime,windspeed,envitemp,wtstatus,limitcode,faultcode,stopcode,limitstatus,theorypower/60 as theorypower,realpower/60 as realpower, ");
+        sqlBuilder.append(" (case when (beginelec > 0 and endelec > 0) then  (case when (((endelec - beginelec)) < 0) ");
+        sqlBuilder.append(" then 0  else ((endelec - beginelec))   end)  else (theorypower / 60)  end ) as elec ,");
+        sqlBuilder.append(" ((case when (beginelec > 0 and endelec > 0 and (endelec - beginelec) > 0) then  (case when (((theorypower / 60) - (endelec - beginelec)) < 0) ");
+        sqlBuilder.append(" then 0  else ((theorypower / 60) -(endelec - beginelec))   end)  else (theorypower / 60)  end )) as losselc ");
+        sqlBuilder.append(",get_density_byheightandhubs(wtid,envitemp)as density");
+        sqlBuilder.append(" from  onedata where wtstatus ='5' and endelec>beginelec ");
+        sqlBuilder.append(" and (rectime >= '" + DateAsDef.dateToString(vStart) + "' and  rectime < '" + DateAsDef.dateToString(vEnd) + "')");
+        sqlBuilder.append(" and wtid =" + vWtid);
+        sqlBuilder.append(" order by rectime");
+        try
+        {
+            dbOper.openConn();
+            ResultSet dt = dbOper.getResultSet(sqlBuilder.toString(), null);
+            while (dt.next())
+            {
+                String wtid = dt.getString("wtid"); // 风机
+                String rectime = dt.getString("rectime");
+                OneDataLossElec bean = new OneDataLossElec(wtid, rectime);
+                // 设置风速
+                bean.setWindspeed(ArrayOper.formatDouble2(dt.getDouble("windspeed")));
+                // 设置环境温度
+                bean.setEnvitemp(ArrayOper.formatDouble2(dt.getDouble("envitemp")));
+
+                // 空气密度
+                bean.setDensity(ArrayOper.formatDouble2(dt.getDouble("density")));
+
+                // 理论发电量
+                bean.setTheorypower(ArrayOper.formatDouble2(dt.getDouble("theorypower")));
+                // 实际发电量
+                bean.setRealpower(ArrayOper.formatDouble2(dt.getDouble("realpower")));
+                // 实际电量
+                bean.setElec(ArrayOper.formatDouble2(dt.getDouble("elec")));
+                bean.setRealloselec(ArrayOper.formatDouble2(dt.getDouble("losselc")));
+                bean.setWtstatus(dt.getString("wtstatus"));
+                bean.setLimitstatus(dt.getString("limitstatus"));
+                bean.setFaultcode(dt.getString("faultcode"));
+                bean.setLimitcode(dt.getString("limitcode"));
+                bean.setStopcode(dt.getString("stopcode"));
+                list.add(bean);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.error("DeviceHandle_" + ex.getMessage(), ex);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+        return list;
+    }
+
+    
+    /**
+     * 查询多个风机多个日期的能效结果
+     * @param dbOper
+     * @param vWtids
+     * @param vStart
+     * @param vEnd
+     * @return
+     */
+    public List<EnergyEfficiencyBean> getEnergyEfficiencyList(DbOperBase dbOper, List<Integer> vWtids, Date vStart, Date vEnd)
+    {
+        List<EnergyEfficiencyBean> beans = new ArrayList<>();
+        for (Integer deviceId : vWtids)
+        {
+            List<EnergyEfficiencyBean> list = getEnergyEfficiencyList(dbOper, deviceId, vStart, vEnd);
+            beans.addAll(list);
+        }
+        return beans;
+    }
+
+    /**
+     * 查询单风机多个日期的能效结果
+     * @param dbOper
+     * @param vWtid
+     * @param vStart
+     * @param vEnd
+     * @return
+     */
+    public List<EnergyEfficiencyBean> getEnergyEfficiencyList(DbOperBase dbOper, int vWtid, Date vStart, Date vEnd)
+    {
+        List<EnergyEfficiencyBean> beans = new ArrayList<>();
+        Calendar castart = Calendar.getInstance();
+        castart.setTime(vStart);
+        Calendar caend = Calendar.getInstance();
+        caend.setTime(vEnd);        
+        while (caend.compareTo(castart) >= 0)
+        {            
+            EnergyEfficiencyBean bean=getEnergyEfficiency(dbOper,vWtid,DateAsDef.dateToString(castart.getTime(),DataAsDef.DATEFORMATSTR));
+            if(null!=bean) 
+            {
+                beans.add(bean);
+            }
+            castart.add(Calendar.DAY_OF_YEAR, 1);
+        }              
+        return beans;
+    }
+
+    /**
+     * 查询单风机单日的能效
+     * @param dbOper
+     * @param vWtid
+     * @param date
+     * @return
+     */
+    public EnergyEfficiencyBean getEnergyEfficiency(DbOperBase dbOper, int vWtid, String date)
+    {
+        try
+        {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+            Date vStartDateTime = sdf.parse(date + " 00:00:00.000");
+            Date vEndDateTime = sdf.parse(date + " 23:59:59.999");            
+            DeviceInfo deviceInfo = MemoryData.getDeviceInfoList().get(String.valueOf(vWtid));
+            EnergyEfficiencyBean energyEfficiencyBean = new EnergyEfficiencyBean(Integer.parseInt(deviceInfo.getWfId()), Integer.parseInt(deviceInfo.getId()), date);
+            List<OneDataLossElec> oneDataList = getOneDataLossElecListMap(dbOper, vWtid, vStartDateTime, vEndDateTime);
+            if (oneDataList.isEmpty())
+            {
+                return energyEfficiencyBean;
+            }                        
+            // 查询所有公式用到的变位数据iecpath
+            List<String> changeDataIecpathList = getChangeDataIecPathList();
+            // 变位数据集合
+            List<ChangeDataBean> changeDatas = changeDataIecpathList.isEmpty() ? new ArrayList<>() : getChangeDataBeans(changeDataIecpathList, String.valueOf(vWtid), vStartDateTime, vEndDateTime);
+            GuarPowBean guarPowBean = getGuarPowBean(dbOper, vWtid);
+
+            for (OneDataLossElec oneDataBean : oneDataList)
+            {                
+                String protocolId = oneDataBean.getProtocolId();
+                int stopType = -1;
+                int standardpower = 0;
+                // 叶片结冰模式字类型 1 停机模式字 2 运行状态字
+                ProtocolRuleBean protocolExtendBean = getProtocolRuleBean(protocolId);
+                if (null != protocolExtendBean)
+                {
+                    stopType = protocolExtendBean.getStopStatusTtype();
+                    standardpower = protocolExtendBean.getStandardPower();
+                }
+                if (standardpower>0 && BaseConfig.getWINDVALUENUM()>1 && oneDataBean.getElec() > standardpower * 1.0 / 60 * BaseConfig.getWINDVALUENUM())
+                {
+                  //判断发电量是否大于额定功率的1.5倍.该条数据的运行状态字置为0，状态等级置为12
+                  continue; 
+                }  
+                List<ExpDataObject> expList = getExpStr("20", protocolId, standardpower);                
+                int setid = DeviceHandleFunction.getCodeRusult(expList, oneDataBean, changeDatas, stopType);
+                EnergyEfficiencyDetailBean detailBean = new EnergyEfficiencyDetailBean(Integer.parseInt(deviceInfo.getWfId()), Integer.parseInt(deviceInfo.getId()), oneDataBean.getRectime());
+                detailBean.setRealelec(oneDataBean.getElec());
+                if (setid == LossType.OtherLimitPower.getResult() || setid == LossType.Dispatchelc.getResult())
+                {
+                    detailBean.setPowerLimitLoss(oneDataBean.getRealloselec());
+                }
+                // 修正后的标准空气下的风速,标准空气密度1.293g/L
+                double vx = Math.pow(oneDataBean.getDensity() / 1.293, 1 / 3.0) * oneDataBean.getWindspeed();
+                double guarpower = getGuarPower(guarPowBean, vx);
+                detailBean.setGuarpow(guarpower);
+                
+                energyEfficiencyBean.getDetailBeans().add(detailBean);
+            }
+            return energyEfficiencyBean;
+        }
+        catch (Exception e)
+        {
+            logger.error("getEnergyEfficiency>>"+DateAsDef.getNow(),e);
+        }
+        return null;
+    }
+
+    private GuarPowBean getGuarPowBean(DbOperBase dbOper, int vWtid)
+    {
+        GuarPowBean bean = new GuarPowBean();
+        try
+        {
+            dbOper.openConn();
+            String sql = "select * from config.guarpowdetail where guarpowid  in (select guarpowid from custom.hdwtpowcurve where wtid=" + vWtid + ")";
+            ResultSet dt = dbOper.getResultSet(sql, null);
+            while (dt.next())
+            {
+                GuarPowDetailBean detailBean = new GuarPowDetailBean(dt.getDouble("windspeed"), dt.getDouble("tbpow"));
+                bean.getDetailBeans().add(detailBean);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.error("DeviceHandle_" + ex.getMessage(), ex);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+        return bean.getDetailBeans().isEmpty() ? null : bean;
+    }
+
+    /**
+     * 根据风速获取担保功率
+     * 
+     * @param vPowBean
+     *            担保功率表
+     * @param vWindSpeed
+     *            风速
+     * @return
+     */
+    private double getGuarPower(GuarPowBean vPowBean, double vWindSpeed)
+    {
+        if (null == vPowBean || vPowBean.getDetailBeans().isEmpty())
+        {
+            return 0.0D;
+        }
+        GuarPowDetailBean detailBean = vPowBean.getDetailBeans()
+                .stream()
+                .filter(o -> o.getWindspeed() - 0.05 < vWindSpeed && o.getWindspeed() + 0.05 > vWindSpeed || DynamicRun.isDoubleEqual(o.getWindspeed() - 0.05, vWindSpeed))
+                .findAny()
+                .orElse(null);
+        if (null != detailBean)
+        {
+            return detailBean.getTbpow()/60.0;
+        }
+        return 0.0D;
+    }
+
+    /**
+     * 根据协议id判断叶片结冰模式字类型
+     * 
+     * @param protocolid
+     * @return
+     */
+    private ProtocolRuleBean getProtocolRuleBean(String protocolid)
+    {
+        if (null == protocolRuleHash || !protocolRuleHash.containsKey(protocolid))
+        {
+            return null;
+        }
+        return protocolRuleHash.get(protocolid);
+    }
+}

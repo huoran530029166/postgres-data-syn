@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.goldwind:bigdata:release:2.1.200.0-release">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/goldwind/bigdata/2.1.200.0-release/bigdata-2.1.200.0-release-release.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/goldwind/bigdata/2.1.200.0-release/bigdata-2.1.200.0-release-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/goldwind/bigdata/2.1.200.0-release/bigdata-2.1.200.0-release-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

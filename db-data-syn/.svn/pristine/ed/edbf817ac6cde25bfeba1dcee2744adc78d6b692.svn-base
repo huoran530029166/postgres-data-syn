@@ -1,0 +1,81 @@
+package com.goldwind.dbdatasyn.sqlite2db.init;
+
+import com.goldwind.dataaccess.database.DbAssistant;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.dataaccess.database.SQLiteOper;
+import com.goldwind.dbdatasyn.pojo.DbConInfo;
+import com.goldwind.dbdatasyn.sqlite2db.factory.Factory;
+import com.goldwind.dbdatasyn.sqlite2db.pojo.SynResult;
+import com.goldwind.dbdatasyn.sqlite2db.service.serviceinterface.IConvert;
+import com.goldwind.dbdatasyn.sqlite2db.utils.Enums;
+import com.goldwind.dbdatasyn.utils.Enum;
+
+/**
+ * 本地库同步到关系库 初始化类
+ *
+ * @author huoran
+ */
+public class Init
+{
+
+    /**
+     * 数据库连接
+     */
+    public static DbOperBase dbOperBase;
+
+    /**
+     * 本地库副本文件连接
+     */
+    public static SQLiteOper sqLiteOper;
+
+    /**
+     * 初始化方法
+     *
+     * @param dbOperType    关系库类型
+     * @param dbConInfo     关系库连接信息
+     * @param sqlitePath    本地库地址
+     * @param sqliteErrPath 错误日志本地库地址
+     * @param delFlag       删除标志
+     * @return 同步结果对象
+     * @throws Exception 异常
+     */
+    public static SynResult init(Enum.DbOperType dbOperType, DbConInfo dbConInfo, String sqlitePath, String sqliteErrPath, boolean delFlag) throws Exception
+    {
+        //定义同步结果对象
+        SynResult result;
+        //转换业务类对象
+        IConvert iConvert = Factory.makeIConvertService(dbOperType);
+
+        //关系型数据库信息转换
+        iConvert.dbConInfoConvert(dbConInfo);
+        //本地库地址转换
+        iConvert.sqlitePathConvert(sqlitePath);
+        //本地库异常文件地址转换
+        iConvert.sqliteErrPathConvert(sqliteErrPath);
+        //删除标志转换
+        iConvert.delFlagConvert(delFlag);
+
+        //创建数据库连接
+        dbOperBase = new DbOperBase(DbAssistant.DatabaseType.Postgre, com.goldwind.dbdatasyn.utils.RunParams.getDatabase_url(), com.goldwind.dbdatasyn.utils.RunParams.getUsername(),
+                com.goldwind.dbdatasyn.utils.RunParams.getPassword());
+        //创建本地库连接
+        sqLiteOper = new SQLiteOper(com.goldwind.dbdatasyn.utils.RunParams.getSqlitePath());
+
+        //创建表对象集合(仅加载在关系库和本地库表名集合中都存在的表信息)
+        iConvert.createAliveTables();
+        //校验表外键关系
+        iConvert.checkFkTableInfo();
+        //校验是否缺失外键主表,如果缺失,直接返回同步失败
+        result = iConvert.checkFkMainMiss();
+        if (result.getResult() == Enums.SynResultEnum.FAIL)
+        {
+            return result;
+        }
+        //校验是否缺失外键子表,如果缺失,可以继续同步,但是同步结果为部分同步
+        result = iConvert.checkFkChildMissFlag();
+        //根据外键关系顺序,对表对象进行排序
+        iConvert.sortTables();
+
+        return result;
+    }
+}

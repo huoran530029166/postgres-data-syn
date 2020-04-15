@@ -1,0 +1,478 @@
+package com.goldwind.datalogic.businesslogic.electricityloss;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.goldwind.dataaccess.ArrayOper;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.datalogic.business.model.ProtocolRuleBean;
+import com.goldwind.datalogic.businesslogic.model.DeviceInfoObject;
+import com.goldwind.datalogic.businesslogic.model.ExpDataObject;
+import com.goldwind.datalogic.businesslogic.model.Losselec;
+import com.goldwind.datalogic.businesslogic.model.Losstime;
+import com.goldwind.datalogic.businesslogic.model.OneDataLossElec;
+import com.goldwind.datalogic.businesslogic.model.TimeCalendar;
+import com.goldwind.datalogic.businesslogic.model.WfidElec;
+import com.goldwind.datalogic.businesslogic.util.DataEnumObject.LossType;
+import com.goldwind.datalogic.businesslogic.util.DataEnumObject.Together;
+import com.goldwind.datalogic.businesslogic.util.DataEnumObject.TypeId;
+import com.goldwind.datalogic.dsp.BaseConfig;
+import com.goldwind.datalogic.businesslogic.util.DataTogetherFunction;
+import com.goldwind.datalogic.businesslogic.util.DeviceHandleFunction;
+
+public class RunStateElectricityLoss extends ElectricityLoss
+{
+
+    /**
+     * 所有协议叶片结冰损失电量类型
+     */
+    private HashMap<String, ProtocolRuleBean> protocolRuleHash;
+    
+
+    public RunStateElectricityLoss(DbOperBase dbOper, Map<String, List<ExpDataObject>> map)
+    {
+        super(dbOper, map);
+        protocolRuleHash = getProtocolRuleHash();
+    }
+
+    /**
+     * 新版运行状态字损失电量查询接口
+     * 
+     * @param starttime
+     * @param endtime
+     * @param wtidlist
+     * @param setidList
+     * @param type
+     * @param together
+     * @return
+     */
+    public List<Losselec> getDeviceLossElecNew(Date starttime, Date endtime, List<String> wtidlist, List<Integer> setidList, String type, Together together)
+    {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        // 时间转换 String 类型
+        String start = sdf.format(starttime);
+        String end = sdf.format(endtime);
+        List<Losselec> losselecList = new ArrayList<>();
+        try
+        {
+            // 损失电量类型判断
+            if (setidList == null || setidList.isEmpty())
+            {
+                setidList = getSetIdList(type);
+            }
+            // 一分钟数据集合
+            Map<String, List<OneDataLossElec>> onedataLossElecListMap = getOneDataLossElecListMap(wtidlist, start, end);
+            for (String device : wtidlist)
+            {
+                Map<String, Losstime> hash = getDeviceTimeInfoNew(device, onedataLossElecListMap, type, setidList);// 所有的损失电量的 hashmap
+                if (hash.size() != 0)
+                {
+                    Map<Integer, Losstime> mapdataobj = new HashMap<>(); // 损失电量对应对象聚合
+                    List<Losstime> listdataobj = new ArrayList<>(); // 时间段对象集合
+                    List<Losstime> listfalut = new ArrayList<>(); // 一分钟故障停机数据集合
+                    if (together.equals(Together.DayTogether))
+                    {
+                        mapdataobj = DataTogetherFunction.getDayDataAgg(setidList, device, hash, listfalut);
+                    }
+                    else if (together.equals(Together.HourTogether))
+                    {
+                        List<TimeCalendar> listfaluttime = getTimeHandle(starttime, endtime);
+                        if (!listfaluttime.isEmpty())
+                        {
+                            listdataobj = DataTogetherFunction.getHourDataPart(setidList, hash, listfaluttime);
+                        }
+                    }
+                    else if (together.equals(Together.TimeTogether))
+                    {
+                        listdataobj = DataTogetherFunction.getTimeDataPart(setidList, hash);
+                    }
+
+                    // 整合 obejct.getWfid()
+                    if (mapdataobj.size() != 0 || !listfalut.isEmpty() || !listdataobj.isEmpty())
+                    {
+                        Losselec dataobj = new Losselec("", device, start, end);
+                        dataobj.setEnergyUseDataHash(mapdataobj);
+                        dataobj.setEnergyUseOneDataList(listfalut);
+                        dataobj.setLosstimeList(listdataobj);
+                        losselecList.add(dataobj);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.error("DeviceHandle_" + ex.getMessage(), ex);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error("DeviceHandle_" + e.getMessage(), e);
+            }
+        }
+        return losselecList;
+    }
+
+    /**
+     * 设备时间对应类型
+     * 
+     * @param device
+     *            设备ID
+     * @param start
+     *            时间时间
+     * @param end
+     *            结束时间
+     * @param typeID
+     *            公式类型
+     * @param setidList
+     *            维护类型集合
+     * @param hashobj
+     *            对象设备
+     * @return 返回时间对应duixiang
+     */
+    protected Map<String, Losstime> getDeviceTimeInfoNew(String device, Map<String, List<OneDataLossElec>> onedataLossElecListMap, String typeID, List<Integer> setidList)
+    {
+        Map<String, Losstime> hash = new HashMap<>();
+        try
+        {
+            List<OneDataLossElec> onedataList = onedataLossElecListMap.get(device);
+            if (null == onedataList || onedataList.isEmpty())
+            {
+                return hash;
+            }
+            for (OneDataLossElec bean : onedataList)
+            {
+                String protocolId = bean.getProtocolId();
+                int standardpower = 0;
+                // 叶片结冰模式字类型 1 停机模式字 2 运行状态字
+                ProtocolRuleBean protocolExtendBean = getProtocolRuleBean(protocolId);
+                if (null != protocolExtendBean)
+                {
+                    standardpower = protocolExtendBean.getStandardPower();
+                }
+                if (standardpower>0 && BaseConfig.getWINDVALUENUM()>1 && bean.getElec() > standardpower * 1.0 / 60 * BaseConfig.getWINDVALUENUM())
+                {
+                  //判断发电量是否大于额定功率的1.5倍.该条数据的运行状态字置为0，状态等级置为12
+                  bean.setStopcode("0");   
+                }               
+                List<ExpDataObject> listexp = getExpStr(typeID, bean.getProtocolId(), 0);
+                int setid = DeviceHandleFunction.getCodeRusult(listexp, bean);
+                if (setidList.contains(setid))
+                {
+                    Losstime obj = new Losstime(bean.getWtid(), setid, bean.getTheorypower(), bean.getRealpower(), 1, bean.getRealloselec(), 0);
+                    obj.setElec(bean.getElec());
+                    obj.setTime(bean.getRectime());
+                    obj.setDeviceId(bean.getWtid());
+                    hash.put(bean.getRectime(), obj);
+                }              
+            }
+            return hash;
+        }
+        catch (Exception ex)
+        {
+            logger.error("DeviceHandle_" + ex.getMessage(), ex);
+        }
+        return hash;
+    }
+
+    /**
+     * 设备时间对应类型
+     * 
+     * @param device
+     *            设备ID
+     * @param start
+     *            时间时间
+     * @param end
+     *            结束时间
+     * @param type
+     *            公式类型
+     * @param listhandle
+     *            维护类型集合
+     * @param hashobj
+     *            对象设备
+     * @return 返回时间对应duixiang
+     */
+    @Deprecated
+    protected Map<String, Losstime> getDeviceTimeInfo(String device, String start, String end, String type, List<Integer> listhandle, Map<String, DeviceInfoObject> hashobj)
+    {
+        Map<String, Losstime> hash = new HashMap<>();
+        try
+        {
+            StringBuilder str = new StringBuilder();
+            dbOper.openConn();
+            // 当时运行状态字 或者 风机对应对象容器 如果容器为1 说明没有关联标杆
+            if (type.equals(TypeId.runstate.getResult()))
+            {
+                str.append("select wtid,rectime,wtstatus,limitcode,faultcode,stopcode,limitstatus,theorypower/60 as theorypower,realpower/60 as realpower, ");
+                str.append(" (case when (beginelec > 0 and endelec > 0) then  (case when (((endelec - beginelec)) < 0) ");
+                str.append(" then 0  else ((endelec - beginelec))   end)  else (theorypower / 60)  end ) as elec ,");
+                str.append(" ((case when (beginelec > 0 and endelec > 0 and (endelec - beginelec) > 0) then  (case when (((theorypower / 60) - (endelec - beginelec)) < 0) ");
+                str.append(" then 0  else ((theorypower / 60) -(endelec - beginelec))   end)  else (theorypower / 60)  end )) as losselc ");
+                str.append(" from  onedata where wtid = ").append("\'" + device + "\' and (rectime >= ").append("\'" + start + "\' and  rectime < \'" + end + "\') order by rectime");
+            }
+
+            // 处理结果集
+            ResultSet dt = dbOper.getResultSet(str.toString(), null);
+            while (dt.next())
+            {
+                String wtid = dt.getString("wtid"); // 风机
+                String rectime = dt.getString("rectime");
+                double theorypower = ArrayOper.formatDouble2(dt.getDouble("theorypower")); // 理论发电量
+                double realpower = ArrayOper.formatDouble2(dt.getDouble("realpower")); // 实际发电量
+                double losselec = ArrayOper.formatDouble2(dt.getDouble("elec")); // 发电量
+                double realloselec = ArrayOper.formatDouble2(dt.getDouble("losselc")); // 损失电量
+                String wtstatus = dt.getString("wtstatus");
+                String limitstatus = dt.getString("limitstatus");
+                String faultcode = dt.getString("faultcode");
+                String stopcode = dt.getString("stopcode");
+                String limitcode = dt.getString("limitcode");
+
+                // 构造一分钟对象
+                OneDataLossElec bean = new OneDataLossElec(wtid, rectime);
+                bean.setWtstatus(wtstatus);
+                bean.setLimitstatus(limitstatus);
+                bean.setFaultcode(faultcode);
+                bean.setLimitcode(limitcode);
+                bean.setStopcode(stopcode);
+
+                List<ExpDataObject> listexp = getExpStr(type, bean.getProtocolId(), 0);
+                int setid = DeviceHandleFunction.getCodeRusult(listexp, bean);
+                if (listhandle.indexOf(setid) > -1)
+                {
+                    Losstime obj = new Losstime(wtid, setid, theorypower, realpower, 1, realloselec, 0);
+                    obj.setElec(losselec);
+                    obj.setTime(rectime);
+                    obj.setDeviceId(wtid);
+                    obj.setInveType(hashobj.get(wtid).getInverType());
+                    hash.put(rectime, obj);
+                }
+            }
+            return hash;
+        }
+        catch (Exception ex)
+        {
+            logger.error("DeviceHandle_" + ex.getMessage(), ex);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+        return hash;
+    }
+
+    public List<Losstime> getDeviceLossDel(Date starttime, Date endtime, List<String> list, List<Integer> listhandle, String type)
+    {
+        List<String> listtime = new ArrayList<>();
+        List<Losstime> listresult = new ArrayList<>();
+        Map<String, List<Losstime>> lit = new HashMap<>();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        try
+        {
+            // 时间转换 String 类型
+            String start = sdf.format(starttime);
+            String end = sdf.format(endtime);
+
+            for (String wtid : list)
+            {
+                Map<String, DeviceInfoObject> mapdevice = getDeviceObject(wtid, type);
+                Map<String, Losstime> obj = getDeviceTimeInfo(wtid, start, end, type, listhandle, mapdevice);
+
+                if (obj.size() != 0)
+                {
+                    for (String str : obj.keySet())
+                    {
+                        if (listtime.indexOf(str) < 0)
+                        {
+                            listtime.add(str);
+                        }
+
+                        if (!lit.containsKey(str))
+                        {
+                            List<Losstime> li = new ArrayList<>();
+                            li.add(obj.get(str));
+
+                            lit.put(str, li);
+                        }
+                        else
+                        {
+                            List<Losstime> li = lit.get(str);
+                            li.add(obj.get(str));
+                        }
+                    }
+                }
+            }
+
+            // 不为0 说明 有限电时间的
+            if (listtime.size() != 0)
+            {
+                // 得到时间段
+                List<TimeCalendar> listcal = DataTogetherFunction.getTimeCalendar(listtime);
+
+                for (TimeCalendar time : listcal)
+                {
+                    Losstime objdata = new Losstime(null, LossType.Dispatchelc.getResult(), 0, 0, 0, 0, 0);
+                    String starttemp = sdf.format(time.getStartime().getTime());
+                    String endttemp = sdf.format(time.getEndtime().getTime());
+
+                    objdata.setStartttime(starttemp);
+                    objdata.setEndtime(endttemp);
+
+                    WfidElec obj = new WfidElec(starttemp.substring(0, starttemp.length() - 9), 0, 0);
+                    double alltheory = 0.0;
+                    double allelec = 0.0;
+
+                    while (time.getEndtime().compareTo(time.getStartime()) >= 0)
+                    {
+                        String timestr = sdf.format(time.getStartime().getTime());
+                        List<Losstime> li = lit.get(timestr);
+
+                        for (Losstime data : li)
+                        {
+                            objdata.setTheory(objdata.getTheory() + data.getTheory());
+                            objdata.setReal(objdata.getReal() + data.getReal());
+                            objdata.setCount(objdata.getCount() + data.getCount());
+                            objdata.setBmrkloss(objdata.getBmrkloss() + data.getBmrkloss());
+                            objdata.setLoss(objdata.getLoss() + data.getLoss());
+                            objdata.setWfidbmark(objdata.getWfidbmark() + data.getWfidbmark());
+
+                            alltheory += data.getTheory();
+                            allelec += data.getElec();
+                        }
+                        time.getStartime().add(Calendar.MINUTE, 1);
+                    }
+
+                    obj.setWfidelec(allelec);
+                    obj.setWfidtheroy(alltheory);
+                    objdata.setWfidelec(obj);
+
+                    // 处理末尾时间
+                    String tempend = endttemp.substring(11, endttemp.length());
+                    if (tempend.equals("23:59:00"))
+                    {
+                        objdata.setEndtime(endttemp.substring(0, 10) + " 24:00:00");
+                    }
+                    else
+                    {
+                        time.getEndtime().add(Calendar.MINUTE, 1);
+                        objdata.setEndtime(sdf.format(time.getEndtime().getTime()));
+                    }
+                    listresult.add(objdata);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.error("DeviceHandle_" + ex.getMessage(), ex);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+        return listresult;
+    }
+
+    /**
+     * 根据测试风机 得到 对应风机 风机对象和标杆风机对象
+     * 
+     * @param device
+     *            设备id
+     * @param type
+     *            类型
+     * @return 返回 wtid 对应对象
+     */
+    protected Map<String, DeviceInfoObject> getDeviceObject(String device, String type)
+    {
+        Map<String, DeviceInfoObject> hash = new HashMap<>();
+        try
+        {
+            // 得打 标杆机组
+            String bmarkdevice = DeviceHandleFunction.getBmarkDeiveInfo(device, dbOper);
+
+            dbOper.openConn();
+            StringBuffer str = new StringBuffer();
+            // 如果不为null 说明 标杆机组 存在
+            if (bmarkdevice != null)
+            {
+                str.append("select a.wfid,a.wtid,a.protocolid,b.normalstate,a.wtnarrate from config.wtinfo a,config.wttypeinfo b where a.protocolid=b.protocolid  and a.wtid in (")
+                        .append("\'" + device + "\',").append("\' " + bmarkdevice + "\')");
+            }
+            else
+            {
+                str.append("select a.wfid,a.wtid,a.protocolid,b.normalstate,a.wtnarrate from config.wtinfo a,config.wttypeinfo b where a.protocolid=b.protocolid  and a.wtid=")
+                        .append("\'" + device + "\'");
+            }
+
+            ResultSet dt = dbOper.getResultSet(str.toString(), null);
+            while (dt.next())
+            {
+                DeviceInfoObject obj = new DeviceInfoObject(dt.getString("wfid"), dt.getString("wtid"), dt.getString("normalstate"));
+                if (obj.getNomalstate().equals("bmark"))
+                {
+                    obj.setInverType(dt.getString("wtnarrate"));
+                }
+                else
+                {
+                    obj.setInverType(dt.getString("wtnarrate"));
+                }
+                hash.put(dt.getString("wtid"), obj);
+            }
+
+        }
+        catch (Exception ex)
+        {
+            logger.error("DeviceHandle_" + ex.getMessage(), ex);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+        return hash;
+    }
+
+    /**
+     * 根据协议id判断叶片结冰模式字类型
+     * 
+     * @param protocolid
+     * @return
+     */
+    private ProtocolRuleBean getProtocolRuleBean(String protocolid)
+    {
+        if (null == protocolRuleHash || !protocolRuleHash.containsKey(protocolid))
+        {
+            return null;
+        }
+        return protocolRuleHash.get(protocolid);
+    }     
+}

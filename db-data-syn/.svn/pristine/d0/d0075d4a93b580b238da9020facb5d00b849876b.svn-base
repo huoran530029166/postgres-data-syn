@@ -1,0 +1,39 @@
+package com.goldwind.dbdatasyn.sqlite2db.utils;
+
+/**
+ * 枚举类
+ *
+ * @author huoran
+ */
+public class Enums
+{
+    /**
+     * 同步结果类型枚举
+     */
+    public enum SynResultEnum
+    {
+        /**
+         * 完全同步
+         */
+        COMPLETELY(0),
+        /**
+        * 部分同步
+        */
+        PART(1),
+        /**
+        * 同步失败
+        */
+        FAIL(2);
+        private int value;
+
+        SynResultEnum(int value)
+        {
+            this.value = value;
+        }
+
+        public int getValue()
+        {
+            return value;
+        }
+    }
+}

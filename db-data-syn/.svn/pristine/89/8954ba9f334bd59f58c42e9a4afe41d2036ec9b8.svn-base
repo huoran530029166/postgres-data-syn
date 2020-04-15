@@ -1,0 +1,259 @@
+package goldwind.db2sqlite.service;
+
+import java.sql.ResultSet;
+import java.util.*;
+
+import com.goldwind.dataaccess.DataAsExpSet;
+import com.goldwind.dataaccess.database.DbAssistant;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.dataaccess.database.SQLiteOper;
+import com.goldwind.dataaccess.file.FileAssistant;
+
+import goldwind.db2sqlite.init.Init;
+import goldwind.db2sqlite.pojo.Col;
+import goldwind.db2sqlite.pojo.Pk;
+import goldwind.db2sqlite.pojo.Table;
+import goldwind.db2sqlite.service.serviceinterface.ISynData;
+import goldwind.db2sqlite.utils.RunParams;
+
+import static com.goldwind.dataaccess.database.DbAssistant.tableToInsSql;
+
+/**
+ * 数据同步业务类
+ *
+ * @author huoran
+ */
+public class PgSynDataService implements ISynData
+{
+    /**
+     * 本地库副本文件连接
+     */
+    private static SQLiteOper sqLiteOper;
+
+    /**
+     * 单次同步条数
+     */
+    private int length = 10000;
+
+    /**
+     * 创建本地Sqlite文件副本
+     */
+    public void createSqliteFileCopy() throws Exception
+    {
+        try
+        {
+            FileAssistant.deleteFile(goldwind.utils.RunParams.getSqlitePath() + "_tmp");
+            sqLiteOper = new SQLiteOper(goldwind.utils.RunParams.getSqlitePath() + "_tmp");
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByMsg("本地库副本文件创建发生异常", null, null, e);
+        }
+    }
+
+    /**
+     * 创建Sqlite中的同步表名信息表
+     *
+     * @throws Exception 异常
+     */
+    public void createTableNamesTable() throws Exception
+    {
+        try
+        {
+            sqLiteOper.openConn();
+            //创建表名信息表
+            StringBuilder builder = new StringBuilder();
+            builder.append("CREATE TABLE tablenames(schemaname varchar , tablename varchar)");
+            sqLiteOper.excute(builder.toString(), null);
+
+            //添加同步表名信息
+            for (Table table : RunParams.getTables())
+            {
+                builder = new StringBuilder();
+                builder.append("insert into tablenames(schemaname,tablename) values(?,?)");
+                sqLiteOper.excute(builder.toString(), new Object[] { table.getSchemaName(), table.getTableName() });
+            }
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByMsg("创建Sqlite中的同步表名信息表发生异常", null, null, e);
+        }
+        finally
+        {
+            sqLiteOper.closeConn();
+        }
+    }
+
+    /**
+     * 同步所有的表数据
+     *
+     * @throws Exception 异常
+     */
+    public Map<String, HashMap<Integer, Exception>> synAllData() throws Exception
+    {
+        Map<String, HashMap<Integer, Exception>> errs = new HashMap<>();
+        for (Table table : RunParams.getTables())
+        {
+            //同步单表数据
+            HashMap<Integer, Exception> tableErrs = synTableData(table);
+            //如果单表同步有错误信息返回,返回调用者
+            if (!tableErrs.isEmpty())
+            {
+                errs.put(table.getSchemaName() + "." + table.getTableName(), tableErrs);
+            }
+            System.out.println("同步数据库表" + table.getSchemaName() + "." + table.getTableName() + "完成！");
+        }
+        return errs;
+    }
+
+    /**
+     * 同步单表数据
+     *
+     * @param table 表对象
+     * @throws Exception 异常
+     */
+    private HashMap<Integer, Exception> synTableData(Table table) throws Exception
+    {
+        List<String> sqls = new ArrayList<>();
+        HashMap<Integer, Exception> errs = new HashMap<>();
+        try
+        {
+            sqLiteOper.openConn();
+            //创建建表语句
+            StringBuilder tableSql = new StringBuilder();
+            tableSql.append("create table ");
+            tableSql.append("\'" + table.getTableName() + "\'( ");
+            for (Col col : table.getCols())
+            {
+                //拼接 表结构列字符串
+                tableSql.append("\'" + col.getColName() + "\' " + DbAssistant.getDbTypeByDataType(col.getColType(), DbAssistant.DatabaseType.SQLite) + " ,");
+            }
+            tableSql.deleteCharAt(tableSql.length() - 1);
+            tableSql.append(" )");
+            sqLiteOper.excute(tableSql.toString(), null);
+            sqLiteOper.closeConn();
+            StringBuilder tableDataSql = new StringBuilder();
+            tableDataSql.append("select * from ");
+            tableDataSql.append("\"" + table.getSchemaName() + "\".\"" + table.getTableName() + "\" ");
+
+            System.out.println("开始同步表" + table.getSchemaName() + "\".\"" + table.getTableName() + "#########################");
+            synData(table, tableDataSql.toString(), errs);
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByMsg("同步表" + table.getSchemaName() + "." + table.getTableName() + "数据发生异常", new String[] { "sqls" }, new Object[] { sqls }, e);
+        }
+        finally
+        {
+            sqLiteOper.closeConn();
+        }
+        return errs;
+    }
+
+    /**
+     * 同步单表内部逻辑
+     *
+     * @param table 表对象
+     * @param sql   原始查表sql
+     * @param errs  错误信息对象
+     * @throws Exception 异常
+     */
+    private void synData(Table table, String sql, HashMap<Integer, Exception> errs) throws Exception
+    {
+        int count = 0;
+        Init.dbOperBase.openConn();
+        String countSql = sql.replace("*", "count(1) as count");
+        ResultSet countRs = Init.dbOperBase.getResultSet(countSql, null);
+        while (countRs.next())
+        {
+            count = countRs.getInt("count");
+        }
+        Init.dbOperBase.closeConn();
+        int num = (count - 1) / length;
+        System.out.println("本表同步:拆分为" + (num + 1) + "次同步");
+        for (int i = 0; i < num + 1; i++)
+        {
+            String excuteSql = sql;
+            if (count > length)
+            {
+                if (table.getPks() != null && !table.getPks().isEmpty())
+                {
+                    StringBuilder orderPkSql = new StringBuilder();
+                    orderPkSql.append(" order by ");
+                    for (Pk pk : table.getPks())
+                    {
+                        orderPkSql.append(pk.getColName() + " ,");
+                    }
+                    orderPkSql.deleteCharAt(orderPkSql.length() - 1);
+                    excuteSql += orderPkSql.toString();
+                    excuteSql += " LIMIT " + length + " OFFSET " + (i * length);
+                }
+                else
+                {
+                    i = num + 1;
+                }
+            }
+            excuteInertDataSql(excuteSql, table, errs);
+            System.out.println("本表同步:第" + (i + 1) + "次同步完成");
+        }
+    }
+
+    /**
+     * 执行数据插入语句方法
+     *
+     * @param sql   原始数据库单表查询语句
+     * @param table 数据库单表对象
+     * @throws Exception 异常
+     */
+    private void excuteInertDataSql(String sql, Table table, HashMap<Integer, Exception> errs) throws Exception
+    {
+        Init.dbOperBase.openConn();
+        ResultSet rs = Init.dbOperBase.getResultSet(sql, null);
+        String[] sqls = tableToInsSql("\"" + table.getTableName() + "\"", rs);
+        Init.dbOperBase.closeConn();
+        sqLiteOper.openConn();
+        HashMap<Integer, Exception> err = sqLiteOper.excuteBatchSqlIgnorErr(sqls);
+        sqLiteOper.closeConn();
+        sqls = null;
+        sql = null;
+        errs.putAll(err);
+    }
+
+    /**
+     * 补充order by 语句
+     *
+     * @param table   表对象
+     * @param builder sql语句
+     */
+    private void orderSql(Table table, StringBuilder builder)
+    {
+        StringBuilder orderbuilder = new StringBuilder();
+        if (table.getPks() != null && !table.getPks().isEmpty())
+        {
+            orderbuilder.append(" order by ");
+            for (Pk pk : table.getPks())
+            {
+                orderbuilder.append(pk.getColName() + ",");
+            }
+            orderbuilder.deleteCharAt(orderbuilder.length() - 1);
+        }
+        builder.append(orderbuilder);
+    }
+
+    /**
+     * 从副本文件拷贝回主路径文件,成功后删除副本文件
+     */
+    public void copyToResultFile() throws Exception
+    {
+        try
+        {
+            FileAssistant.deleteFile(goldwind.utils.RunParams.getSqlitePath());
+            FileAssistant.copyFile(goldwind.utils.RunParams.getSqlitePath() + "_tmp", goldwind.utils.RunParams.getSqlitePath());
+            FileAssistant.deleteFile(goldwind.utils.RunParams.getSqlitePath() + "_tmp");
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByMsg("本地库副本文件切换至正式文件发生异常", null, null, e);
+        }
+    }
+}

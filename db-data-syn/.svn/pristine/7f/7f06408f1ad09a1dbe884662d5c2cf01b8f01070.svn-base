@@ -1,0 +1,61 @@
+package com.goldwind.dbdatasyn;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.goldwind.dbdatasyn.db2sqlite.init.Init;
+import com.goldwind.dbdatasyn.db2sqlite.pojo.Participation;
+import com.goldwind.dbdatasyn.db2sqlite.pojo.SynResult;
+import com.goldwind.dbdatasyn.db2sqlite.utils.Enums;
+import com.goldwind.dbdatasyn.db2sqlite.utils.RunParams;
+import com.goldwind.dbdatasyn.pojo.DbConInfo;
+import com.goldwind.dbdatasyn.utils.Enum;
+
+public class Main
+{
+    public static void main(String[] args) throws Exception
+    {
+        //表名入参
+        List<Participation> participations = new ArrayList<>();
+        Participation participation1 = new Participation();
+        participation1.setName("config@separator@wttypeinfo");
+        participation1.setType(Enums.ParticipationType.table);
+
+        Participation participation2 = new Participation();
+        participation2.setName("config@separator@wttypeinfo");
+        participation2.setType(Enums.ParticipationType.table);
+
+        Participation participation3 = new Participation();
+        participation3.setName("config@separator@controlorder");
+        participation3.setType(Enums.ParticipationType.table);
+
+        Participation participation4 = new Participation();
+        participation4.setName("config@separator@devicetypeinfo");
+        participation4.setType(Enums.ParticipationType.table);
+
+        participations.add(participation1);
+        //        participations.add(participation2);
+        //        participations.add(participation3);
+        //        participations.add(participation4);
+
+        //数据库连接信息入参
+        DbConInfo dbConInfo = new DbConInfo();
+        dbConInfo.setDatabase_url("jdbc:postgresql://localhost:5432/local_syn");
+        dbConInfo.setUsername("postgres");
+        dbConInfo.setPassword("123456");
+        //        dbConInfo.setDatabase_url("jdbc:postgresql://10.80.5.109:8101/qhsoam_dev");
+        //        dbConInfo.setUsername("pguser");
+        //        dbConInfo.setPassword("pguser");
+        dbConInfo.setMax_pool_size(200);
+        dbConInfo.setMin_pool_size(10);
+        dbConInfo.setDb_outtime(600);
+        dbConInfo.setMax_idletime(60);
+
+        String sqlitePath = "D:\\db_data_dev.sqlite";
+
+        SynResult synResult = Init.init(Enum.DbOperType.POSTGRES, participations, dbConInfo, sqlitePath);
+        System.out.println("同步结果:" + synResult);
+
+        System.out.println(RunParams.getTables());
+    }
+}

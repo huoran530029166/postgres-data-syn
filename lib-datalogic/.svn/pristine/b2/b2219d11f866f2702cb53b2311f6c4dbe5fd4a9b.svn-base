@@ -1,0 +1,137 @@
+package com.goldwind.datalogic.business.model;
+
+import com.goldwind.datalogic.business.BusinessDef.PartType;
+
+/**
+ * 分区表信息
+ * 
+ * @author 冯春源
+ *
+ */
+public class ParrtionMetaInfo
+{
+    /**
+     * 模式名
+     */
+    private String tabSchema;
+    /**
+     * 表名
+     */
+    private String tabName;
+    /**
+     * 主键
+     */
+    private String pkColumn;
+    /**
+     * 分区类型 0-list分区，1-复合分区
+     */
+    private PartType partType;
+    /**
+     * 可供分区用的字段（暂时没有用处）
+     */
+    private String partKey;
+    /**
+     * 约束检查键（即真实用来建分区用的字段）
+     */
+    private String checkKey;
+    /**
+     * 子分区表模式
+     */
+    private String subSchema;
+    /**
+     * 调用函数名
+     */
+    private String callFun;
+
+    public ParrtionMetaInfo(String tabSchema, String tabName, String pkColumn, int partType, String partKey, String checkKey, String subSchema, String callFun)
+    {
+        this.tabSchema = tabSchema;
+        this.tabName = tabName;
+        this.pkColumn = pkColumn;
+        this.partType = PartType.getResultToType(partType);
+        this.partKey = partKey;
+        this.checkKey = checkKey;
+        this.subSchema = subSchema;
+        this.callFun = callFun;
+    }
+
+    public String getTabSchema()
+    {
+        return tabSchema;
+    }
+
+    public void setTabSchema(String tabSchema)
+    {
+        this.tabSchema = tabSchema;
+    }
+
+    public String getTabName()
+    {
+        return tabName;
+    }
+
+    public void setTabName(String tabName)
+    {
+        this.tabName = tabName;
+    }
+
+    public String getPkColumn()
+    {
+        return pkColumn;
+    }
+
+    public void setPkColumn(String pkColumn)
+    {
+        this.pkColumn = pkColumn;
+    }
+
+    public PartType getPartType()
+    {
+        return partType;
+    }
+
+    public void setPartType(PartType partType)
+    {
+        this.partType = partType;
+    }
+
+    public String getPartKey()
+    {
+        return partKey;
+    }
+
+    public void setPartKey(String partKey)
+    {
+        this.partKey = partKey;
+    }
+
+    public String getCheckKey()
+    {
+        return checkKey;
+    }
+
+    public void setCheckKey(String checkKey)
+    {
+        this.checkKey = checkKey;
+    }
+
+    public String getCallFun()
+    {
+        return callFun;
+    }
+
+    public void setCallFun(String callFun)
+    {
+        this.callFun = callFun;
+    }
+
+    public String getSubSchema()
+    {
+        return subSchema;
+    }
+
+    public void setSubSchema(String subSchema)
+    {
+        this.subSchema = subSchema;
+    }
+}

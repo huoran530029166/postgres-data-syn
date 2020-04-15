@@ -1,0 +1,60 @@
+package com.goldwind.dbdatasyn.sqlite2db.utils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import com.goldwind.dbdatasyn.sqlite2db.pojo.Table;
+
+public class Func
+{
+    /**
+     * 对table对象赋值排序数值 未排序数值为0,排序数值从1开始
+     *
+     * @param i             排序数值最小值
+     * @param tables        待排序的表对象集合(全集)
+     * @param tableSepNames 所有尚未且需要排序的表Sep名集合
+     */
+    public static void sortTables(int i, List<Table> tables, List<String> tableSepNames)
+    {
+        //本次排序完成的表名集合,在本次排序完成后从tableSepNames中删除
+        List<String> delNamesList = new ArrayList<>();
+        for (Table table : tables)
+        {
+            //表对象所关联的外键主表集合
+            List<Map<String, String>> fkMains = table.getSortFkMains();
+            //需要删除的在tableSepNames中不存在的本表对象关联的外键主表集合
+            List<Map<String, String>> delList = new ArrayList<>();
+            if (fkMains != null)
+            {
+                for (Map<String, String> fkMain : fkMains)
+                {
+                    String schemaName = fkMain.get("schemaName");
+                    String tableName = fkMain.get("tableName");
+                    if (!tableSepNames.contains(schemaName + "@sep@" + tableName))
+                    {
+                        delList.add(fkMain);
+                    }
+                }
+                //将表对象关联的外键主表中删除在tableSepNames中不存在的项
+                fkMains.removeAll(delList);
+            }
+
+            //如果该表对象未经历排序赋值(排序数值)且当前排序过程中不存在未排序的外键主表,则本次进行排序赋值
+            if (table.getSortNum() == 0 && (fkMains == null || fkMains.isEmpty()))
+            {
+                table.setSortNum(i);
+                //排序赋值完成后,加入tableSepNames待删除集合
+                delNamesList.add(table.getSchemaName() + "@sep@" + table.getTableName());
+            }
+        }
+        //删除已完成排序的表名信息
+        tableSepNames.removeAll(delNamesList);
+        //如果剩余未排序表,则进行下一次排序(下一次排序数值+1)
+        if (!tableSepNames.isEmpty())
+        {
+            i++;
+            sortTables(i, tables, tableSepNames);
+        }
+    }
+}

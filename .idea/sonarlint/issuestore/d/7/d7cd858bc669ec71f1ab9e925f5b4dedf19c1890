@@ -1,0 +1,13 @@
+
+Ssquid:S1444"0Make this "public static dbOperBase" field final(¨÷êÈüÿÿÿÿ8ÒÏ¾—.
+isquid:CommentedOutCodeLine8"<This block of commented-out lines of code should be removed.(Ú°à¬8ÒÏ¾—.
+nsquid:CommentedOutCodeLine;"<This block of commented-out lines of code should be removed.(£¹ØÍşÿÿÿÿ8ÒÏ¾—.
+isquid:CommentedOutCodeLineA"<This block of commented-out lines of code should be removed.(”á”8ÒÏ¾—.
+"squid:ClassVariableVisibilityCheck"VMake dbOperBase a static final constant or non-public and provide accessors if needed.(¨÷êÈüÿÿÿÿ8ÒÏ¾—.
+Xsquid:S1118":Add a private constructor to hide the implicit public one.(€Õ×8ÒÏ¾—.
+Isquid:UselessImportCheck"Remove this duplicated import.(ë÷şØ8ÒÏ¾—.
+Isquid:UselessImportCheck"Remove this duplicated import.(˜»Š®8ÒÏ¾—.
+Nsquid:UselessImportCheck"Remove this duplicated import.(¿İŠÚùÿÿÿÿ8ÒÏ¾—.
+Nsquid:UselessImportCheck"Remove this duplicated import.(‚ğ½âøÿÿÿÿ8ÒÏ¾—.
+Nsquid:UselessImportCheck"Remove this duplicated import.(˜Ÿ‡Ùşÿÿÿÿ8ÒÏ¾—.
+squid:UselessImportCheck"VRemove this unused import 'com.goldwind.dbdatasyn.db2sqlite.service.PgSynDataService'.(ÕÃŸ¯8ÒÏ¾—.

@@ -1,0 +1,86 @@
+package com.goldwind.dbdatasyn;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+
+import com.goldwind.dataaccess.database.DbAssistant;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.dbdatasyn.sqlite2db.service.PgSynDataService;
+
+import org.postgresql.largeobject.LargeObject;
+import org.postgresql.largeobject.LargeObjectManager;
+
+public class localTest
+{
+    public static void main(String[] args) throws Exception
+    {
+        //  小数类型的值,保留有效位数,去除多余的尾数0
+        //        double d = 2d;
+        //        int i = (int)d;
+        //        String str = String.valueOf(i);
+        //        System.out.println(str);
+        //        String s = "14.60";
+        //        s = PgSynDataService.delTailZero(s);
+        //        System.out.println(s);
+
+        //postgres oid数据类型的插入
+        //        DbOperBase dbOperBase = new DbOperBase(DbAssistant.DatabaseType.Postgre, "jdbc:postgresql://localhost:5432/local_syn", "postgres", "123456");
+        //        dbOperBase.openConn();
+        //        String s = "1234567890";
+        //        byte[] bytes = s.getBytes("utf-8");
+        //        Connection connection = dbOperBase.getConn();
+        //        connection.setAutoCommit(false);
+        //        LargeObjectManager lobj = ((org.postgresql.PGConnection) connection).getLargeObjectAPI();
+        //        long oid = lobj.createLO(LargeObjectManager.READ | LargeObjectManager.WRITE);
+        //        System.out.println("oid:" + oid);
+        //        LargeObject obj = lobj.open(oid, LargeObjectManager.WRITE);
+        //        byte[] buf = new byte[2048];
+        //        ByteArrayInputStream bInput = new ByteArrayInputStream(bytes);
+        //        int n;
+        //        while ((n = bInput.read(buf, 0, 2048)) > 0)
+        //        {
+        //            obj.write(buf, 0, n);
+        //        }
+        //        obj.close();
+        //        bInput.close();
+        //        connection.setAutoCommit(true);
+        //        dbOperBase.closeConn();
+
+        //postgres oid数据类型的查询
+        DbOperBase dbOperBase = new DbOperBase(DbAssistant.DatabaseType.Postgre, "jdbc:postgresql://localhost:5432/local_syn", "postgres", "123456");
+        dbOperBase.openConn();
+        Connection connection = dbOperBase.getConn();
+        connection.setAutoCommit(false);
+        LargeObjectManager lobj = ((org.postgresql.PGConnection) connection).getLargeObjectAPI();
+        LargeObject obj = lobj.open(1392861, LargeObjectManager.READ);
+        byte[] buf = new byte[1024];
+        ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
+        int n;
+        while ((n = obj.read(buf, 0, 1024)) > 0)
+        {
+            bOutput.write(buf, 0, n);
+        }
+        obj.close();
+        String s = new String(bOutput.toByteArray(), "utf-8");
+        System.out.println(s);
+        bOutput.close();
+        connection.setAutoCommit(true);
+        dbOperBase.closeConn();
+
+        //测试oid与bigint(int8)的ColType值区别
+        //        DbOperBase dbOperBase = new DbOperBase(DbAssistant.DatabaseType.Postgre, "jdbc:postgresql://localhost:5432/local_syn", "postgres", "123456");
+        //        dbOperBase.openConn();
+        //        ResultSet rs = dbOperBase.getResultSet("select * from syn.otable limit 1", null);
+        //        ResultSetMetaData rsmd = rs.getMetaData();
+        //        for (int i = 0; i < rsmd.getColumnCount(); i++)
+        //        {
+        //            System.out.println(rsmd.getColumnName(i + 1) + "    " + rsmd.getColumnTypeName(i + 1) + "     " + rsmd.getColumnType(i + 1));
+        //        }
+        //        dbOperBase.closeConn();
+    }
+}

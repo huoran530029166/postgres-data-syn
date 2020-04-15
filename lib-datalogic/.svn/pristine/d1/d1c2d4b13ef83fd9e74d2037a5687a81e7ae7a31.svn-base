@@ -1,0 +1,473 @@
+package com.goldwind.datalogic.utils;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.goldwind.dataaccess.DataAsExpSet;
+import com.goldwind.dataaccess.Log;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.dataaccess.exception.DataAsException;
+import com.goldwind.datalogic.business.model.DeviceInfo;
+import com.goldwind.datalogic.business.model.GroupInfo;
+import com.goldwind.datalogic.business.model.NoticeSortInfo;
+import com.goldwind.datalogic.business.model.NoticeTypeInfo;
+import com.goldwind.datalogic.business.model.ParrtionMetaInfo;
+import com.goldwind.datalogic.business.model.WtHisProtocolInfo;
+import com.goldwind.datalogic.utils.NetCommDef.WfDeviceType;
+import com.mysql.cj.util.StringUtils;
+
+/**
+ * 内存数据类
+ * 
+ * @author 冯春源
+ *
+ */
+public class MemoryData// NOSONAR
+{
+    /**
+     * 错误日志
+     */
+    private static Log logger = Log.getLog(MemoryData.class);
+
+    /**
+     * key:id, value:groupinfo groupinfo表
+     */
+    private static HashMap<String, GroupInfo> groupInfo = new HashMap<>();
+    /**
+     * 副本
+     */
+    private static HashMap<String, GroupInfo> groupInfoCopy = new HashMap<>();
+
+    /**
+     * key是设备编号(字符串),value是DeviceInfo, 汇总数据设备列表
+     */
+    private static HashMap<String, DeviceInfo> deviceInfoList = new HashMap<>();
+
+    /**
+     * key是设备编号(字符串),value是DeviceInfo, 汇总数据设备列表（内存副本）
+     */
+    private static HashMap<String, DeviceInfo> deviceInfoListCopy = new HashMap<>();
+
+    /**
+     * 用户消息订阅推送类型，key是userid,value是<noid,该用户的推送类型>
+     */
+    private static HashMap<String, HashMap<String, NoticeTypeInfo>> noticeTypeInfo = new HashMap<>();
+
+    /**
+     * 用户消息订阅推送类型(内存副本)
+     */
+    private static HashMap<String, HashMap<String, NoticeTypeInfo>> noticeTypeInfoCopy = new HashMap<>();
+
+    /**
+     * 消息过滤规则，key是userid,value是该用户设置的过滤规则（HashMap<userid, HashMap<id, NoticeSortInfo>>）
+     */
+    private static HashMap<String, HashMap<String, NoticeSortInfo>> noticeSortInfo = new HashMap<>();
+
+    /**
+     * 消息过滤规则(内存副本)
+     */
+    private static HashMap<String, HashMap<String, NoticeSortInfo>> noticeSortInfoCopy = new HashMap<>();
+
+    /**
+     * 设备设备协议变化记录表,key是设备编号(字符串),value是List<Calendar,WtHisProtocolInfo>设备协议变化信息
+     */
+    private static HashMap<String, List<WtHisProtocolInfo>> wtHisProtocolList = new HashMap<>();
+
+    /**
+     * 分区信息集合 key是tabname,value是分区信息
+     */
+    private static HashMap<String, ParrtionMetaInfo> parrtionMetaInfos = new HashMap<>();
+
+    /**
+     * 分区信息集合(内存副本)
+     */
+    private static HashMap<String, ParrtionMetaInfo> parrtionMetaInfosCopy = new HashMap<>();
+
+    /**
+     * 将数据库中的数据读取到内存 说明：将同步内存和切换主副内存放在一块是为了防止同步内存失败后还进行切换
+     * 
+     * @param dbOper
+     *            数据库连接对象
+     * @throws DataAsException
+     *             自定义异常
+     */
+    public static void getDBData(DbOperBase dbOper)
+    {
+        try
+        {
+            // 风场数据同步到内存
+            getWfData(dbOper);
+            memorySwitchForWf();
+        }
+        catch (DataAsException e)
+        {
+            logger.error("Wind Synchronization Failure:" + e);
+        }
+
+        try
+        {
+            // 消息过滤规则同步到内存
+            getNoticeSortData(dbOper);
+            memorySwitchForNotice();
+        }
+        catch (DataAsException e)
+        {
+            logger.error("Message filtering rule synchronization failed:" + e);
+        }
+
+        try
+        {
+            // 分区表信息同步到内存
+            getParrtionMetaData(dbOper);
+            memorySwitchForParrtionMeta();
+        }
+        catch (DataAsException e)
+        {
+            logger.error("Message filtering rule synchronization failed:" + e);
+        }
+    }
+
+    /**
+     * 风场数据同步到内存
+     * 
+     * @param dbOper
+     *            数据库连接对象
+     * @throws DataAsException
+     */
+    public static void getWfData(DbOperBase dbOper) throws DataAsException
+    {
+        try
+        {
+            dbOper.openConn();
+
+            // 获取groupinfo表数据 (兼容wfid有可能是0开头的组织ID,内存中组织id全部转为int再转为string以去掉前面的0 2020.02.28 fcy)
+            // 原因：warnllog入库时，由于wfid类型为int，前面的0被去掉了
+            String sql = "select * from config.groupinfo where typeid<>1 and typeid<>11";
+            ResultSet group = dbOper.getResultSet(sql, null);
+            while (group.next())
+            {
+                try
+                {
+                    GroupInfo groupInfo = new GroupInfo();
+                    String id = group.getString("id");
+                    if (id.startsWith("0"))
+                    {
+                        id = String.valueOf(Integer.parseInt(id));
+                    }
+                    groupInfo.setId(id);
+                    String parentid = group.getString("parentid");
+                    if (StringUtils.isNullOrEmpty(parentid) || !parentid.startsWith("0"))
+                    {
+                        groupInfo.setParentId(parentid);
+                    }
+                    else
+                    {
+                        groupInfo.setParentId(String.valueOf(Integer.parseInt(parentid)));
+                    }
+                    groupInfo.setName(group.getString("name"));
+                    groupInfo.setTypeId(group.getInt("typeid"));
+                    groupInfo.setIndexId(group.getString("indexid"));
+                    groupInfo.setSort(group.getInt("sort"));
+                    groupInfo.setCapability(group.getInt("capability"));
+                    groupInfoCopy.put(id, groupInfo);
+                }
+                catch (Exception e)
+                {
+                    logger.error("Groupinfo Synchronization Failure:" + e);
+                }
+            }
+
+            // 读取设备信息
+            sql = "select a.wfid as wfid, a.wtid as wtid, a.wtname as wtname, a.protocolid as protocolid, a.enabled as parentid,a.portid"
+                    + ", b.ip as preip, b.username as preuser, b.password as prepassword" + ", c.ip as serviceip, c.port as serviceport"
+                    + ", d.ip as plcip, d.username as plcuser, d.password as plcpassword"
+                    + ", e.wttypedefine as wttype, e.devicetype as devicetype,e.normalstate as normalstate,e.standardpower as standardpower" + ",f.portname,f.portcontent" + "  from config.wtinfo a "
+                    + "  left join config.proxypcinfo b on a.proxypcid = b.id " + "  left join config.serviceinfo c on b.serviceid = c.id " + "  left join config.plcinfo d on a.plcid = d.id "
+                    + "  left join config.wttypeinfo e on a.protocolid = e.protocolid" + "   left join config.portinfo f on a.portid=f.portid" + "  order by a.wfid, a.wtid";
+            ResultSet wtInfos = dbOper.getResultSet(sql, null);
+            while (wtInfos.next())
+            {
+                String wfId = wtInfos.getString("wfid");
+                String wtId = wtInfos.getString("wtid");
+                String wtType = wtInfos.getString("wttype");
+                DeviceInfo deviceInfo = new DeviceInfo(wfId, wtId, wtType, wtInfos.getString("wtname"), wtInfos.getString("protocolid"), wtInfos.getString("devicetype"), wtInfos.getString("parentid"),
+                        wtInfos.getString("preip"), wtInfos.getString("preuser"), wtInfos.getString("prepassword"), wtInfos.getString("serviceip"), wtInfos.getString("serviceport"),
+                        wtInfos.getString("plcip"), wtInfos.getString("plcuser"), wtInfos.getString("plcpassword"), wtInfos.getString("normalstate"), wtInfos.getString("standardpower"));
+                deviceInfo.setPortId(wtInfos.getString("portid"));
+                deviceInfo.setPortName(wtInfos.getString("portname"));
+                deviceInfo.setPortContent(wtInfos.getString("portcontent"));
+                deviceInfoListCopy.put(wtId, deviceInfo);
+            }
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByResCode("MemoryData_getWfData_1", new String[] {}, new Object[] {}, e);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+    }
+
+    /**
+     * 消息过滤规则同步到内存
+     * 
+     * @param dbOper
+     *            数据库连接对象
+     * @throws DataAsException
+     */
+    public static void getNoticeSortData(DbOperBase dbOper) throws DataAsException
+    {
+        try
+        {
+            dbOper.openConn();
+
+            // 获取用户消息订阅推送类型
+            String typeSql = "select * from custom.noticetype";
+            ResultSet typeRs = dbOper.getResultSet(typeSql, null);
+            while (typeRs.next())
+            {
+                String userid = typeRs.getString("userid");
+                String noid = typeRs.getString("noid");
+                NoticeTypeInfo noticeTypeInfo = new NoticeTypeInfo(userid, typeRs.getString("byapp"), typeRs.getString("bymail"), typeRs.getString("bysms"));
+                if (!noticeTypeInfoCopy.containsKey(userid))
+                {
+                    HashMap<String, NoticeTypeInfo> noticeTypeInfos = new HashMap<>();
+                    noticeTypeInfos.put(noid, noticeTypeInfo);
+                    noticeTypeInfoCopy.put(userid, noticeTypeInfos);
+                }
+                else
+                {
+                    noticeTypeInfoCopy.get(userid).put(noid, noticeTypeInfo);
+                }
+            }
+
+            // 获取消息过滤规则
+            String sortSql = "select * from custom.noticesort";
+            ResultSet sortRs = dbOper.getResultSet(sortSql, null);
+            while (sortRs.next())
+            {
+                String userid = sortRs.getString("userid");
+
+                NoticeSortInfo noticeSort = new NoticeSortInfo();
+                noticeSort.setNoId(sortRs.getString("noid"));
+                noticeSort.setSystemId(sortRs.getString("systemid"));
+                noticeSort.setObjecttype(sortRs.getString("objecttype"));
+                noticeSort.setObjectId(sortRs.getString("objectid"));
+                noticeSort.setDevicetype(sortRs.getString("devicetype"));
+                noticeSort.setLevelId(sortRs.getString("levelid"));
+                noticeSort.setInfo(sortRs.getString("info"));
+                noticeSort.setTypeId(sortRs.getString("typeid"));
+                noticeSort.setUserId(userid);
+                noticeSort.setModifyUser(sortRs.getString("modifyuser"));
+                noticeSort.setModifyTime(sortRs.getTimestamp("modifytime"));
+                noticeSort.setFiltertype(sortRs.getString("filtertype"));
+                noticeSort.setGroupId(sortRs.getString("groupid"));
+                if (noticeSortInfoCopy.containsKey(userid))
+                {
+                    noticeSortInfoCopy.get(userid).put(sortRs.getString("noid"), noticeSort);
+                }
+                else
+                {
+                    HashMap<String, NoticeSortInfo> noticeSortinfo = new HashMap<>();
+                    noticeSortinfo.put(sortRs.getString("noid"), noticeSort);
+                    noticeSortInfoCopy.put(userid, noticeSortinfo);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByResCode("MemoryData_getNoticeSortData_1", new String[] {}, new Object[] {}, e);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+    }
+
+    /**
+     * 分区表信息同步到内存
+     * 
+     * @param dbOper
+     *            数据库连接对象
+     * @throws DataAsException
+     */
+    public static void getParrtionMetaData(DbOperBase dbOper) throws DataAsException
+    {
+        try
+        {
+            // dbOper.openConn();
+            //
+            // // 获取分区表信息
+            // String sql = "select * from config.parrtion_meta";
+            // ResultSet rs = dbOper.getResultSet(sql, null);
+            // while (rs.next())
+            // {
+            // String tabname = rs.getString("tabname");
+            // ParrtionMetaInfo parrtionMetaInfo = new ParrtionMetaInfo(rs.getString("tabschema"), tabname, rs.getString("pkColumn"), rs.getInt("partType"), rs.getString("partKey"),
+            // rs.getString("checkKey"), rs.getString("callFun"));
+            // parrtionMetaInfosCopy.put(tabname, parrtionMetaInfo);
+            // }
+        }
+        catch (Exception e)
+        {
+            DataAsExpSet.throwExpByResCode("MemoryData_getParrtionMetaData_1", new String[] {}, new Object[] {}, e);
+        }
+        finally
+        {
+            try
+            {
+                dbOper.closeConn();
+            }
+            catch (SQLException e)
+            {
+                logger.error(e);
+            }
+        }
+    }
+
+    /**
+     * 风机同步切换内存
+     * 
+     * @Title: memorySwitchForWf
+     * @Description: 风机同步切换内存
+     * @return: void
+     */
+    public static void memorySwitchForWf()
+    {
+        // 主副内存切换
+        deviceInfoList = deviceInfoListCopy;
+        groupInfo = groupInfoCopy;
+
+        // 将副内存清空
+        deviceInfoListCopy = new HashMap<>();
+        groupInfoCopy = new HashMap<>();
+    }
+
+    /**
+     * 消息过滤规则内存切换
+     * 
+     * @Title: memorySwitchForNotice
+     * @Description: 消息过滤规则内存切换
+     * @return: void
+     */
+    public static void memorySwitchForNotice()
+    {
+        // 主副内存切换
+        noticeTypeInfo = noticeTypeInfoCopy;
+        noticeSortInfo = noticeSortInfoCopy;
+
+        // 清空副内存
+        noticeTypeInfoCopy = new HashMap<>();
+        noticeSortInfoCopy = new HashMap<>();
+    }
+
+    /**
+     * 分区信息内存切换
+     * 
+     * @Title: memorySwitchForParrtionMeta
+     * @Description: 分区信息内存切换
+     * @return: void
+     */
+    public static void memorySwitchForParrtionMeta()
+    {
+        // 主副内存切换
+        parrtionMetaInfos = parrtionMetaInfosCopy;
+
+        // 清空副内存
+        parrtionMetaInfosCopy = new HashMap<>();
+    }
+
+    public static HashMap<String, GroupInfo> getGroupInfo()
+    {
+        return groupInfo;
+    }
+
+    public static void setGroupInfo(HashMap<String, GroupInfo> gROUPINFO)
+    {
+        groupInfo = gROUPINFO;
+    }
+
+    public static HashMap<String, HashMap<String, NoticeTypeInfo>> getNoticeTypeInfo()
+    {
+        return noticeTypeInfo;
+    }
+
+    public static void setNoticeTypeInfo(HashMap<String, HashMap<String, NoticeTypeInfo>> nOTICETYPEINFO)
+    {
+        noticeTypeInfo = nOTICETYPEINFO;
+    }
+
+    public static HashMap<String, DeviceInfo> getDeviceInfoList()
+    {
+        return deviceInfoList;
+    }
+
+    /**
+     * 从内存中获取指定类型的设备集合 xjs 2019-9-11 13:37:52
+     * 
+     * @param deviceType
+     * @return
+     */
+    public static List<DeviceInfo> getDeviceInfoList(WfDeviceType deviceType)
+    {
+        if (null == deviceInfoList || deviceInfoList.isEmpty())
+        {
+            return new ArrayList<>();
+        }
+        return deviceInfoList.values().stream().filter(o -> String.valueOf(deviceType.getResult()).equals(o.getDeviceType())).collect(Collectors.toList());
+    }
+
+    public static void setDeviceInfoList(HashMap<String, DeviceInfo> dEVICEINFOLIST)
+    {
+        deviceInfoList = dEVICEINFOLIST;
+    }
+
+    public static HashMap<String, HashMap<String, NoticeSortInfo>> getNoticeSortInfo()
+    {
+        return noticeSortInfo;
+    }
+
+    public static void setNoticeSortInfo(HashMap<String, HashMap<String, NoticeSortInfo>> nOTICESORTINFO)
+    {
+        noticeSortInfo = nOTICESORTINFO;
+    }
+
+    public static HashMap<String, List<WtHisProtocolInfo>> getWTHISPROTOCOLLIST()
+    {
+        return wtHisProtocolList;
+    }
+
+    public static void setWTHISPROTOCOLLIST(HashMap<String, List<WtHisProtocolInfo>> wTHISPROTOCOLLIST)
+    {
+        wtHisProtocolList = wTHISPROTOCOLLIST;
+    }
+
+    public static HashMap<String, ParrtionMetaInfo> getParrtionMetaInfos()
+    {
+        return parrtionMetaInfos;
+    }
+
+    public static void setParrtionMetaInfos(HashMap<String, ParrtionMetaInfo> parrtionMetaInfos)
+    {
+        MemoryData.parrtionMetaInfos = parrtionMetaInfos;
+    }
+}

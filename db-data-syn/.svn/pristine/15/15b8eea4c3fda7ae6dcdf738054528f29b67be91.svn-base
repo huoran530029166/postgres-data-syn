@@ -1,0 +1,87 @@
+package com.goldwind.dbdatasyn.sqlite2db.service.serviceinterface;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.goldwind.dbdatasyn.sqlite2db.pojo.Table;
+import com.goldwind.dbdatasyn.sqlite2db.pojo.TableData;
+
+/**
+ * 本地库同步数据到关系库 业务接口
+ *
+ * @author huoran
+ */
+public interface ISynData
+{
+    /**
+     * 数据同步主方法
+     */
+    void synData() throws Exception;
+
+    /**
+     * 数据同步单表方法
+     *
+     * @param table   表对象
+     * @param delSqls 删除SQL集合
+     */
+    void synTableData(Table table, List<String> delSqls) throws Exception;
+
+    /**
+     * 查询本地库分组数据,如果主键包含协议号,传入协议号作为条件;如果主键不包含协议号,入参传null;
+     *
+     * @param table      表对象
+     * @param protocolid 协议号,为-1时,查询全表
+     * @param errInfos   异常信息收集对象
+     */
+    TableData querySqliteData(Table table, Integer protocolid, Map<String, HashMap<Integer, Exception>> errInfos);
+
+    /**
+     * 组装本地库数据查询SQL
+     *
+     * @param protocolid 协议号,为-1时,查询全表
+     * @param table      表对象
+     * @return SQL语句
+     */
+    String assembleSqliteDataSql(Integer protocolid, Table table);
+
+    /**
+     * 查询关系库分组数据,如果主键包含协议号,传入协议号作为条件;如果主键不包含协议号,入参传null;
+     *
+     * @param table      表对象
+     * @param protocolid 协议号,为-1时,查询全表
+     * @param errInfos   异常收集对象
+     */
+    TableData queryDbData(Table table, Integer protocolid, Map<String, HashMap<Integer, Exception>> errInfos);
+
+    /**
+     * 组装关系库数据查询SQL
+     *
+     * @param protocolid 协议号,为-1时,查询全表
+     * @param table      表对象
+     * @return SQL语句
+     */
+    String assembleDbDataSql(Integer protocolid, Table table);
+
+    /**
+     * 比较本地库、关系库 分组数据 生成数据库脚本
+     *
+     * @param sqliteData 本地库数据集
+     * @param dbData     关系库数据集
+     * @param table      表对象
+     * @param errInfos   错误异常记录
+     * @param delSqls    记录删除SQL集合
+     * @return 数据库脚本集合
+     */
+    void compareTableData(TableData sqliteData, TableData dbData, Table table, Map<String, HashMap<Integer, Exception>> errInfos, List<String> delSqls) throws Exception;
+
+    /**
+     * 删除 单表数据 本地库中不存在关系库中存在的协议号数据
+     *
+     * @param table       表对象
+     * @param protocolids 协议号集合
+     * @param errInfos    异常记录集合
+     * @param delSqls     记录删除SQL集合
+     */
+    void deleteNoExistProData(Table table, List<Integer> protocolids, Map<String, HashMap<Integer, Exception>> errInfos, List<String> delSqls) throws Exception;
+}

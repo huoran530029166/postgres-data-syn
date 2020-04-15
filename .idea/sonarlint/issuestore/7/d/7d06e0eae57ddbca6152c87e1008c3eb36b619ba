@@ -1,0 +1,39 @@
+
+esquid:S4042"IUse "java.nio.Files#delete" here for better messages on error conditions.(Ú©ÎÀ8µíóî•.
+csquid:S00112"FDefine and throw a dedicated exception instead of using a generic one.(ª¡¿²8µíóî•.
+gsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬8µíóî•.
+esquid:S4042"IUse "java.nio.Files#delete" here for better messages on error conditions.(íÔˆ¢8µíóî•.
+lsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ÅÜœşÿÿÿÿ8µíóî•.
+Gsquid:S1075"&Remove this hard-coded path-delimiter.(€—™üÿÿÿÿ8µíóî•.
+]
+squid:S899"=Do something with the "boolean" value returned by "renameTo".(ÇÓ“‹ÿÿÿÿÿ8µíóî•.
+lsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ŞÚâÊüÿÿÿÿ8µíóî•.
+fsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ìç€8µíóî•.
+V
+squid:S899";Do something with the "boolean" value returned by "delete".(Ú©ÎÀ8µíóî•.
+gsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(¼÷”¥8µíóî•.
+ssquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed.(ÓÚ²İüÿÿÿÿ8µíóî•.
+bsquid:S3027"FPut single-quotes around '/' to use the faster "indexOf(char)" method.(’¡ıà8µíóî•.
+jsquid:S4042"IUse "java.nio.Files#delete" here for better messages on error conditions.(é‘‚©úÿÿÿÿ8µíóî•.
+[
+squid:S899";Do something with the "boolean" value returned by "delete".(é‘‚©úÿÿÿÿ8µíóî•.
+Ksquid:S2093"*Change this "try" to a try-with-resources.(ç£êúÿÿÿÿ8µíóî•.
+gsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(’É¯8µíóî•.
+Psquid:S1066"/Merge this if statement with the enclosing one.(ÀÆĞ´øÿÿÿÿ8µíóî•.
+jsquid:S4042"IUse "java.nio.Files#delete" here for better messages on error conditions.(é‘‚©úÿÿÿÿ8µíóî•.
+Vsquid:S1118":Add a private constructor to hide the implicit public one.(Š‡•â8µíóî•.
+V
+squid:S899";Do something with the "boolean" value returned by "delete".(íÔˆ¢8µíóî•.
+jsquid:S4042"IUse "java.nio.Files#delete" here for better messages on error conditions.(²Œ­ûÿÿÿÿ8µíóî•.
+lsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(‘¤åûÿÿÿÿ8µíóî•.
+lsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(šĞºûÿÿÿÿ8µíóî•.
+gsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ı¯şí8µíóî•.
+[
+squid:S899";Do something with the "boolean" value returned by "delete".(²Œ­ûÿÿÿÿ8µíóî•.
+€squid:S1149"_Replace the synchronized class "StringBuffer" by an unsynchronized one such as "StringBuilder".(úïÒÚûÿÿÿÿ8µíóî•.
+lsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(éØ»Úûÿÿÿÿ8µíóî•.
+[
+squid:S899"@Do something with the "boolean" value returned by "setWritable".(«áŸ°8µíóî•.
+lsquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ş¨ÂŒÿÿÿÿÿ8µíóî•.
+[
+squid:S899";Do something with the "boolean" value returned by "delete".(é‘‚©úÿÿÿÿ8µíóî•.

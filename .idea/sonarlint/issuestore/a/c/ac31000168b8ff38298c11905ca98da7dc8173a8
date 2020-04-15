@@ -1,0 +1,68 @@
+
+lsquid:S2077"RUse a variable binding mechanism to construct this query instead of concatenation.(·ë¡ãøÿÿÿÿ
+lsquid:S2077"RUse a variable binding mechanism to construct this query instead of concatenation.(·ë¡ãøÿÿÿÿ
+ksquid:S1192"VDefine a constant instead of duplicating this literal "org.postgresql.Driver" 4 times.(÷Ç×ğ
+ksquid:S3008"QRename this field "LOGGER" to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(æâÈ’øÿÿÿÿ
+dsquid:S3008"ORename this field "POOL" to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(¦æ¢
+jsquid:S3008"URename this field "POOLDBTYPE" to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(±ñ†È
+nsquid:S2293"YReplace the type specification in this constructor call with the diamond operator ("<>").(÷…
+0squid:S3626"Remove this redundant jump.(ÉŠ©ƒ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(§‰»¾úÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(¿ªÌ‰
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(¸Õøÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ûÇûÍ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(à†Ôüÿÿÿÿ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(§âüÿÿÿÿ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ë•Íşÿÿÿÿ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ÌÍ—Âùÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(æ÷±³
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(«õ™İıÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ï°è×
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ô·À
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ûçÔÈúÿÿÿÿ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ûçÔÈúÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(àÖØ˜
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ûçÔÈúÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(àÖØ˜
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(×ÄÈÈşÿÿÿÿ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ûçÔÈúÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ò´¢ƒ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(«õ™İıÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ï°è×
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ô·À
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ì¦‚¯
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ë¤Ò¹şÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(êÇ”
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(³ÎÈúûÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(½Æ…Ãúÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ñ©„‹
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(éØ»Úûÿÿÿÿ
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(éØ»Úûÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(³ÎÈúûÿÿÿÿ
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(ğ„§Å
+`squid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(Ú°à¬
+esquid:CommentedOutCodeLine"<This block of commented-out lines of code should be removed.(éØ»Úûÿÿÿÿ
+‡squid:S1319"mThe return type of this method should be an interface such as "Map" rather than the implementation "HashMap".(Š—ÔØúÿÿÿÿ
+‡squid:S1319"mThe return type of this method should be an interface such as "Map" rather than the implementation "HashMap".(Îâåãıÿÿÿÿ
+‡squid:S1319"mThe return type of this method should be an interface such as "Map" rather than the implementation "HashMap".(ÈÈ·Üÿÿÿÿÿ
+‚squid:S1319"mThe return type of this method should be an interface such as "Map" rather than the implementation "HashMap".(Ù·µù
+‡squid:S1319"mThe return type of this method should be an interface such as "Map" rather than the implementation "HashMap".(–˜…ÿÿÿÿÿ
+[squid:HiddenFieldCheck"6Rename "rs" which hides the field declared at line 83.(ÀÇÄûÿÿÿÿ
+Qsquid:S2589"7Remove this expression which always evaluates to "true"(§¸³şÿÿÿÿ
+Qsquid:S2589"7Remove this expression which always evaluates to "true"(§¸³şÿÿÿÿ
+Qsquid:S2589"7Remove this expression which always evaluates to "true"(§¸³şÿÿÿÿ
+Qsquid:S2589"7Remove this expression which always evaluates to "true"(§¸³şÿÿÿÿ
+Osquid:S1133"5Do not forget to remove this deprecated code someday.(†°ñğıÿÿÿÿ
+Lsquid:S1135"2Complete the task associated to this TODO comment.(æÛœğıÿÿÿÿ
+;squid:S1481"&Remove this unused "i" local variable.(¤‰Ğœ
+Ssquid:MissingDeprecatedCheck"(Add the missing @deprecated Javadoc tag.(†°ñğıÿÿÿÿ
+gsquid:S3776"RRefactor this method to reduce its Cognitive Complexity from 24 to the 15 allowed.(Áå†½
+Vsquid:S2259"AA "NullPointerException" could be thrown; "stm" is nullable here.(ÜÖ¸ˆ
+asquid:S00112"FDefine and throw a dedicated exception instead of using a generic one.(—Ê„úøÿÿÿÿ
+\squid:S00112"FDefine and throw a dedicated exception instead of using a generic one.(Áå†½

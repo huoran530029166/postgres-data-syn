@@ -1,0 +1,101 @@
+package com.goldwind.datalogic.businesslogic.model;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.goldwind.dataaccess.DateAsDef;
+
+public class EnergyEfficiencyBean
+{
+    private int wfid;
+
+    private int wtid;
+
+    private String rectime;
+
+    private double realelec;
+
+    private double guarpow;
+
+    private double ee;
+
+    private List<EnergyEfficiencyDetailBean> detailBeans = null;
+
+    public EnergyEfficiencyBean(int vWfid, int vWtid, String vRectime)
+    {
+        this.wfid = vWfid;
+        this.wtid = vWtid;
+        this.rectime = vRectime;
+        this.detailBeans = new ArrayList<>();
+    }
+
+    /**
+     * @return the wfid
+     */
+    public int getWfid()
+    {
+        return wfid;
+    }
+
+    /**
+     * @return the wtid
+     */
+    public int getWtid()
+    {
+        return wtid;
+    }
+
+    /**
+     * @return the rectime
+     */
+    public String getRectime()
+    {
+        return rectime;
+    }
+
+    /**
+     * @return the realelec
+     */
+    public double getRealelec()
+    {
+        return detailBeans.stream().mapToDouble(o->o.getRealelec() + o.getPowerLimitLoss()).sum();
+    }
+
+    /**
+     * @return the guarpow
+     */
+    public double getGuarpow()
+    {
+        return detailBeans.stream().mapToDouble(EnergyEfficiencyDetailBean::getGuarpow).sum();
+    }
+
+    /**
+     * @return the ee
+     */
+    public double getEE()
+    {
+        double sumReal = getRealelec();
+        double sumGuarpow = getGuarpow();
+        return sumGuarpow > 0 ? sumReal / sumGuarpow : 0D;
+    }
+
+    public String getDeleteSql()
+    {
+        return "delete  from xxtable where wtid=" + this.wtid + " and rectime ='" + this.rectime + "';";
+    }
+
+    public String getInsertSql()
+    {
+        return "INSERT INTO xxtable (wfid, wtid, rectime, realelec, guarpow,ee,createtime)" + " VALUES(" + this.wfid + ", " + this.wtid + ", '" + this.rectime + "', " + this.realelec + ", "
+                + this.guarpow + "," + this.ee + "'" + DateAsDef.getNow() + "');";
+    }
+
+    /**
+     * @return the detailBeans
+     */
+    public List<EnergyEfficiencyDetailBean> getDetailBeans()
+    {
+        return detailBeans;
+    }
+
+}

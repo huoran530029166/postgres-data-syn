@@ -1,0 +1,127 @@
+package com.goldwind.dbdatasyn.sqlite2db.init;
+
+import com.goldwind.dataaccess.database.DbAssistant;
+import com.goldwind.dataaccess.database.DbOperBase;
+import com.goldwind.dataaccess.database.SQLiteOper;
+import com.goldwind.dataaccess.file.FileAssistant;
+import com.goldwind.dbdatasyn.pojo.DbConInfo;
+import com.goldwind.dbdatasyn.sqlite2db.factory.Factory;
+import com.goldwind.dbdatasyn.sqlite2db.pojo.SynResult;
+import com.goldwind.dbdatasyn.sqlite2db.service.serviceinterface.IConvert;
+import com.goldwind.dbdatasyn.sqlite2db.service.serviceinterface.ISynData;
+import com.goldwind.dbdatasyn.sqlite2db.utils.Enums;
+import com.goldwind.dbdatasyn.utils.Enum;
+import com.goldwind.dbdatasyn.utils.RunParams;
+
+/**
+ * 本地库同步到关系库 初始化类
+ *
+ * @author huoran
+ */
+public class Init
+{
+    /**
+     * 数据库连接
+     */
+    public static DbOperBase dbOperBase;
+
+    /**
+     * 本地库文件连接
+     */
+    public static SQLiteOper sqLiteOper;
+
+    /**
+     * 本地库异常文件链接
+     */
+    public static SQLiteOper sqLiteErrOper;
+
+    /**
+     * 初始化方法
+     *
+     * @param dbOperType    关系库类型
+     * @param dbConInfo     关系库连接信息
+     * @param sqlitePath    本地库地址
+     * @param sqliteErrPath 错误日志本地库地址
+     * @param delFlag       删除标志
+     * @param timeOut       查询动作超时时间
+     * @return 同步结果对象
+     * @throws Exception 异常
+     */
+    public static SynResult init(Enum.DbOperType dbOperType, DbConInfo dbConInfo, String sqlitePath, String sqliteErrPath, boolean delFlag, int timeOut) throws Exception
+    {
+        //定义同步结果对象
+        SynResult result;
+        //转换业务类对象
+        IConvert iConvert = Factory.makeIConvertService(dbOperType);
+
+        //关系型数据库信息转换
+        iConvert.dbConInfoConvert(dbConInfo);
+        //本地库地址转换
+        iConvert.sqlitePathConvert(sqlitePath);
+        //本地库异常文件地址转换
+        iConvert.sqliteErrPathConvert(sqliteErrPath);
+        //删除标志转换
+        iConvert.delFlagConvert(delFlag);
+
+        DbOperBase.setTimeOut(timeOut);
+        //创建数据库连接
+        dbOperBase = new DbOperBase(DbAssistant.DatabaseType.Postgre, com.goldwind.dbdatasyn.utils.RunParams.getDatabase_url(), com.goldwind.dbdatasyn.utils.RunParams.getUsername(),
+                com.goldwind.dbdatasyn.utils.RunParams.getPassword());
+        //创建本地库连接
+        sqLiteOper = new SQLiteOper(com.goldwind.dbdatasyn.utils.RunParams.getSqlitePath());
+        //创建本地库异常文件连接
+        sqLiteErrOper = new SQLiteOper(com.goldwind.dbdatasyn.sqlite2db.utils.RunParams.getSqliteErrPath());
+
+        //创建表对象集合(仅加载在关系库和本地库表名集合中都存在的表信息)
+        iConvert.createAliveTables();
+        //校验表外键关系
+        iConvert.checkFkTableInfo();
+        //校验是否缺失外键主表,如果缺失,直接返回同步失败
+        result = iConvert.checkFkMainMiss();
+        if (result.getResult() == Enums.SynResultEnum.FAIL)
+        {
+            return result;
+        }
+        //校验是否缺失外键子表,如果缺失,可以继续同步,但是同步结果为部分同步
+        result = iConvert.checkFkChildMissFlag();
+        //根据外键关系顺序,对表对象进行排序
+        iConvert.sortTables();
+
+        //创建表对象的关系库列信息集合
+        iConvert.createDbCols();
+        //创建表对象的本地库列信息集合
+        iConvert.createSqliteCols();
+        //比对关系库和本地库表结构
+        iConvert.compareCols();
+
+        //创建表对象的主键集合
+        iConvert.createPKs();
+        //创建表对象的主键是否包含协议号标志
+        iConvert.createPkProFlags();
+        //创建表对象包含的协议号分组
+        iConvert.createTableProtocolids();
+        //创建表对象包含的协议号分组(本地库)
+        iConvert.createTableProtocolidsSqlite();
+
+        ISynData iSynData = Factory.makeISynDataService(dbOperType);
+        System.out.println("初始化参数加载完成,开始同步");
+        try
+        {
+            //数据同步动作
+            iSynData.synData();
+        }
+        catch (Exception e)
+        {
+            //如果主线程出现异常,同步结果为失败
+            result.setResult(Enums.SynResultEnum.FAIL);
+        }
+
+        if (result.getResult() != Enums.SynResultEnum.FAIL)
+        {
+            //如果同步结果为部分同步或者全部同步,对应删除本地库数据文件
+            FileAssistant.deleteFile(RunParams.getSqlitePath());
+        }
+
+        return result;
+    }
+}

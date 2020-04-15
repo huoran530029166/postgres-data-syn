@@ -1,0 +1,12 @@
+
+_squid:UnusedPrivateMethodä"-Remove this unused private "orderSql" method.(ÇÔŠşùÿÿÿÿ8»œĞ¾—.
+‹ squid:ForLoopCounterChangedCheckÀ"XRefactor the code in order to not assign to this loop counter from within the loop body.(±•D8»œĞ¾—.
+V
+squid:S106g"9Replace this use of System.out or System.err by a logger.(›Çü8»œĞ¾—.
+W
+squid:S106Š"9Replace this use of System.out or System.err by a logger.(…¶ïÓ8»œĞ¾—.
+V
+squid:S106¬"9Replace this use of System.out or System.err by a logger.(Ğÿ8»œĞ¾—.
+W
+squid:S106Ä"9Replace this use of System.out or System.err by a logger.(Ê†ü©8»œĞ¾—.
+Ssquid:S2696-"6Make the enclosing method "static" or remove this set.(İ—õ.8»œĞ¾—.

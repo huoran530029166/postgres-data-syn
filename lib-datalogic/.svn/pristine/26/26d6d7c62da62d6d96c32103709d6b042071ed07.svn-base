@@ -1,0 +1,88 @@
+package com.goldwind.datalogic.utils;
+
+/**
+ * 公式基础定义
+ * 
+ * @author 冯春源
+ *
+ */
+public class FactorDef
+{
+    /**
+     * 计算因子类型, 0 单设备, 1 多设备
+     * 
+     * @author 冯春源
+     *
+     */
+    public enum FactorType
+    {
+        /**
+         * 设备计算（支持单设备和多设备）
+         */
+        SingleDevice(0),
+
+        /**
+         * 组织计算
+         */
+        MultipleDevices(1);
+
+        /**
+         * 参数
+         */
+        private int result;
+
+        FactorType(int result)
+        {
+            this.result = result;
+        }
+
+        public int getResult()
+        {
+            return this.result;
+        }
+    }
+
+    /**
+     * 聚合方式
+     * 
+     * @author 冯春源
+     *
+     */
+    public enum ArrgType
+    {
+        /**
+         * 求和
+         */
+        SUM("SUM"),
+
+        /**
+         * 求平均
+         */
+        AVG("AVG"),
+
+        /**
+         * 最大值
+         */
+        max("max"),
+
+        /**
+         * 最小值
+         */
+        min("min");
+
+        /**
+         * 参数
+         */
+        private String result;
+
+        ArrgType(String result)
+        {
+            this.result = result;
+        }
+
+        public String getResult()
+        {
+            return this.result;
+        }
+    }
+}

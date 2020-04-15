@@ -1,0 +1,36 @@
+package com.goldwind.dbdatasyn.db2sqlite.utils;
+
+public class Enums
+{
+    /**
+     * 入参类型枚举
+     */
+    public enum ParticipationType
+    {
+        /**
+         * 模式
+         */
+        schema(0),
+        /**
+        * 表
+        */
+        table(1);
+
+        private int value;
+
+        ParticipationType(int value)
+        {
+            this.value = value;
+        }
+
+        public int getValue()
+        {
+            return value;
+        }
+
+        public void setValue(int value)
+        {
+            this.value = value;
+        }
+    }
+}
