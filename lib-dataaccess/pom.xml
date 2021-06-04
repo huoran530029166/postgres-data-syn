@@ -52,7 +52,7 @@
 		<dependency>
 			<artifactId>httpclient</artifactId>
 			<groupId>org.apache.httpcomponents</groupId>
-			<version>4.5.3</version>
+			<version>4.5.13</version>
 		</dependency>
 		<dependency>
 			<artifactId>httpcore</artifactId>
@@ -221,7 +221,7 @@
 		<dependency>
 			<artifactId>httpclient</artifactId>
 			<groupId>org.apache.httpcomponents</groupId>
-			<version>4.5.3</version>
+			<version>4.5.13</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/commons-lang/commons-lang -->
 		<dependency>
